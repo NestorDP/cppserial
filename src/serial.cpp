@@ -77,6 +77,13 @@ ssize_t Serial::writeRaw(const uint8_t* data, size_t size) {
   return static_cast<ssize_t>(total_written);
 }
 
+ssize_t Serial::writeRaw(const std::vector<uint8_t>& data) {
+  if (data.empty()) {
+    throw IOException("Data vector is empty");
+  }
+  return writeRaw(data.data(), data.size());
+}
+
 size_t Serial::read(std::shared_ptr<std::string> buffer) {
   if (canonical_mode_ == CanonicalMode::DISABLE) {
     throw IOException(
