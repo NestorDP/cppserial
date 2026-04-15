@@ -396,24 +396,18 @@ void setFdForTest(int fd) {
 // used in production code.
 void setPollSystemFunction(
   std::function<int(struct pollfd*, nfds_t, int)> poll_func) {
-  poll_ = [poll_func](struct pollfd* f, nfds_t n, int t) {
-            return poll_func(f, n, t);
-          };
+  poll_ = poll_func;
 }
 
 void setReadSystemFunction(
   std::function<ssize_t(int, void*, size_t)> read_func) {
-  read_ = [read_func](int fd, void* buf, size_t sz) {
-            return read_func(fd, buf, sz);
-          };
+  read_ = read_func;
 }
 
 /* *INDENT-OFF* */
 void setIoctlSystemFunction(
   std::function<int(int, unsigned long, void*)> ioctl_func) {  // NOLINT
-  ioctl_ = [ioctl_func](int fd, unsigned long request, void* arg) { // NOLINT
-             return ioctl_func(fd, request, arg);
-           };
+  ioctl_ = ioctl_func;
 }
 /* *INDENT-ON* */
 #endif
