@@ -54,6 +54,29 @@ void Serial::write(std::shared_ptr<std::string> data) {
   }
 }
 
+ssize_t Serial::writeRaw(const uint8_t* data, size_t size) {
+  if (!data || size == 0) {
+    throw IOException("Invalid buffer passed to writeRaw");
+  }
+
+  size_t total_written = 0;
+
+  while (total_written < size) {
+    ssize_t ret = ::write(fd_serial_port_,
+                          data + total_written,
+                          size - total_written);
+
+    if (ret < 0) {
+      if (errno == EINTR) continue;
+      throw IOException("Error writing raw data: " + std::string(strerror(errno)));
+    }
+
+    total_written += static_cast<size_t>(ret);
+  }
+
+  return static_cast<ssize_t>(total_written);
+}
+
 size_t Serial::read(std::shared_ptr<std::string> buffer) {
   if (canonical_mode_ == CanonicalMode::DISABLE) {
     throw IOException(

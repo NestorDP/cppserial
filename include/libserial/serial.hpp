@@ -106,6 +106,19 @@ void close();
 void write(std::shared_ptr<std::string> data);
 
 /**
+ * @brief Writes raw byte data to the serial port
+ *
+ * Sends the provided byte data to the serial port without any modification.
+ *
+ * @param data Vector containing the byte data to write
+ * @param size Number of bytes to write from the data vector
+ * @return Number of bytes actually written
+ * @throws SerialException if write operation fails
+ * @throws std::invalid_argument if data vector is empty
+ */
+ssize_t writeRaw(const uint8_t* data, size_t size);
+
+/**
  * @brief Reads data from serial port into a shared pointer buffer
  *
  * Reads up to max_length bytes from the serial port and stores them
