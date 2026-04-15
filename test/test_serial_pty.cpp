@@ -102,31 +102,6 @@ TEST_F(PseudoTerminalTest, ParameterizedConstructor) {
   libserial::Serial serial_port(slave_port_);
 }
 
-// TEST_F(PseudoTerminalTest, SetTermios2WithFail) {
-//   libserial::Serial serial_port;
-
-//   serial_port.open(slave_port_);
-
-//   // Inject failure into ioctl for setTermios2
-//   serial_port.setIoctlSystemFunction(
-//     [](int, unsigned long, void*) -> int {  // NOLINT
-//     errno = EIO;
-//     return -1;
-//   });
-
-//   EXPECT_THROW({
-//     serial_port.setBaudRate(9600);
-//   }, libserial::SerialException);
-
-//   // Restore ioctl function for cleanup
-//   serial_port.setIoctlSystemFunction(
-//     [](int fd, unsigned long request, void* arg) -> int {  // NOLINT
-//     return ::ioctl(fd, request, arg);
-//   });
-
-//   serial_port.close();
-// }
-
 TEST_F(PseudoTerminalTest, SetAndGetBaudRate) {
   libserial::Serial serial_port;
 
@@ -149,45 +124,6 @@ TEST_F(PseudoTerminalTest, SetAndGetBaudRate) {
 
   serial_port.close();
 }
-
-// TEST_F(PseudoTerminalTest, SetAndGetDataLength) {
-//   libserial::Serial serial_port;
-
-//   serial_port.open(slave_port_);
-
-//   // Test multiple data lengths to be more thorough
-//   std::vector<libserial::DataLength> test_lengths = {
-//     libserial::DataLength::FIVE,
-//     libserial::DataLength::SIX,
-//     libserial::DataLength::SEVEN,
-//     libserial::DataLength::EIGHT
-//   };
-
-//   for (const auto& expected_length : test_lengths) {
-//     // Set data length
-//     EXPECT_NO_THROW({
-//       serial_port.setDataLength(expected_length);
-//     });
-
-//     // Add a small delay and flush
-//     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-//     // Force a re-read of the current settings
-//     serial_port.close();
-//     serial_port.open(slave_port_);
-
-//     // Get data length and verify
-//     libserial::DataLength actual_length;
-//     EXPECT_NO_THROW({
-//       actual_length = serial_port.getDataLength();
-//     });
-
-//     EXPECT_EQ(actual_length, expected_length)
-//       << "Failed for data length: " << static_cast<int>(expected_length);
-//   }
-
-//   serial_port.close();
-// }
 
 TEST_F(PseudoTerminalTest, SetGetReadTimeout) {
   libserial::Serial serial_port;
