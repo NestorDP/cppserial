@@ -711,3 +711,60 @@ TEST_F(PseudoTerminalTest, WriteRawPartialWrites) {
   EXPECT_EQ(written, data.size());
   EXPECT_GT(call_count, 1);  // ensure loop was used
 }
+
+TEST_F(PseudoTerminalTest, WriteRawWithEINTR) {
+  libserial::Serial serial_port;
+  serial_port.open(slave_port_);
+
+  std::vector<uint8_t> data = {1,2,3};
+
+  int call_count = 0;
+
+  serial_port.setWriteSystemFunction(
+    [&call_count](int, const void*, size_t len) -> ssize_t {
+      if (call_count++ == 0) {
+        errno = EINTR;
+        return -1;
+      }
+      return len;
+    });
+
+  EXPECT_NO_THROW({
+    ssize_t written = serial_port.writeRaw(data.data(), data.size());
+    EXPECT_EQ(written, data.size());
+  });
+}
+
+TEST_F(PseudoTerminalTest, WriteRawWithError) {
+  libserial::Serial serial_port;
+  serial_port.open(slave_port_);
+
+  std::vector<uint8_t> data = {1,2,3};
+
+  serial_port.setWriteSystemFunction(
+    [](int, const void*, size_t) -> ssize_t {
+      errno = EIO;
+      return -1;
+    });
+
+  EXPECT_THROW({
+    try {
+      serial_port.writeRaw(data.data(), data.size());
+    } catch (const libserial::IOException& e) {
+      EXPECT_STREQ("Error writing raw data: Input/output error", e.what());
+      throw;
+    }
+  }, libserial::IOException);
+}
+
+TEST_F(PseudoTerminalTest, WriteRawLargeBuffer) {
+  libserial::Serial serial_port;
+  serial_port.open(slave_port_);
+
+  std::vector<uint8_t> data(4096, 0xAA);
+
+  EXPECT_NO_THROW({
+    ssize_t written = serial_port.writeRaw(data.data(), data.size());
+    EXPECT_EQ(written, data.size());
+  });
+}
