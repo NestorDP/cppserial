@@ -666,3 +666,25 @@ TEST_F(PseudoTerminalTest, ReadUntilWithOverflowBuffer) {
     }
   }, libserial::IOException);
 }
+
+TEST_F(PseudoTerminalTest, WriteRawBasic) {
+  libserial::Serial serial_port;
+
+  serial_port.open(slave_port_);
+  serial_port.setBaudRate(115200);
+
+  std::vector<uint8_t> data = {0x00, 0xFF, 0x10, 0x41, 0x00};
+
+  EXPECT_NO_THROW({
+    ssize_t written = serial_port.writeRaw(data.data(), data.size());
+    EXPECT_EQ(written, data.size());
+  });
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+  uint8_t buffer[100] = {0};
+  ssize_t bytes_read = read(master_fd_, buffer, sizeof(buffer));
+
+  ASSERT_EQ(bytes_read, data.size());
+  EXPECT_EQ(std::vector<uint8_t>(buffer, buffer + bytes_read), data);
+}
