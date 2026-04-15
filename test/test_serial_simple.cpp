@@ -109,3 +109,16 @@ TEST_F(SerialTest, WriteRawNullBuffer) {
     }
   }, libserial::IOException);
 }
+
+TEST_F(SerialTest, WriteRawZeroSize) {
+  libserial::Serial serial_port;
+  uint8_t dummy = 0;
+  EXPECT_THROW({
+    try {
+      serial_port.writeRaw(&dummy, 0);
+    } catch (const libserial::IOException& e) {
+      EXPECT_STREQ("Invalid buffer passed to writeRaw", e.what());
+      throw;
+    }
+  }, libserial::IOException);
+}
