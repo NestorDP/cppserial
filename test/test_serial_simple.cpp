@@ -97,3 +97,15 @@ TEST_F(SerialTest, CloseWithInvalidFd) {
     EXPECT_EQ(msg, "Error closing port: Bad file descriptor");
   }
 }
+
+TEST_F(SerialTest, WriteRawNullBuffer) {
+  libserial::Serial serial_port;
+  EXPECT_THROW({
+    try {
+      serial_port.writeRaw(nullptr, 10);
+    } catch (const libserial::IOException& e) {
+      EXPECT_STREQ("Invalid buffer passed to writeRaw", e.what());
+      throw;
+    }
+  }, libserial::IOException);
+}
