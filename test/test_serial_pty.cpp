@@ -688,3 +688,26 @@ TEST_F(PseudoTerminalTest, WriteRawBasic) {
   ASSERT_EQ(bytes_read, data.size());
   EXPECT_EQ(std::vector<uint8_t>(buffer, buffer + bytes_read), data);
 }
+
+TEST_F(PseudoTerminalTest, WriteRawPartialWrites) {
+  libserial::Serial serial_port;
+  serial_port.open(slave_port_);
+
+  std::vector<uint8_t> data = {1,2,3,4,5,6};
+
+  size_t call_count = 0;
+
+  serial_port.setWriteSystemFunction(
+    [&call_count](int, const void* buf, size_t len) -> ssize_t {
+      call_count++;
+
+      // Simulate partial writes (2 bytes per call)
+      size_t to_write = std::min<size_t>(2, len);
+      return to_write;
+    });
+
+  ssize_t written = serial_port.writeRaw(data.data(), data.size());
+
+  EXPECT_EQ(written, data.size());
+  EXPECT_GT(call_count, 1);  // ensure loop was used
+}

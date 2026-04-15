@@ -404,6 +404,11 @@ void setReadSystemFunction(
   read_ = read_func;
 }
 
+void setWriteSystemFunction(
+  std::function<ssize_t(int, const void*, size_t)> write_func) {
+  write_ = write_func;
+}
+
 /* *INDENT-OFF* */
 void setIoctlSystemFunction(
   std::function<int(int, unsigned long, void*)> ioctl_func) {  // NOLINT
@@ -443,6 +448,16 @@ std::function<int(struct pollfd*, nfds_t, int)> poll_ =
 std::function<ssize_t(int, void*, size_t)> read_ =
   [](int fd, void* buf, size_t sz) {
     return ::read(fd, buf, sz);
+  };
+
+/**
+ * @brief Write system call function wrapper
+ * 
+ * Allows injection of custom write function for testing.
+ */
+std::function<ssize_t(int, const void*, size_t)> write_ =
+  [](int fd, const void* buf, size_t sz) {
+    return ::write(fd, buf, sz);
   };
 
 /**

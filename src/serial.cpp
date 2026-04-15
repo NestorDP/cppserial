@@ -47,7 +47,7 @@ void Serial::write(std::shared_ptr<std::string> data) {
     throw IOException("Null pointer passed to write function");
   }
 
-  ssize_t bytes_written = ::write(fd_serial_port_, data->c_str(), data->size());
+  ssize_t bytes_written = write_(fd_serial_port_, data->c_str(), data->size());
 
   if (bytes_written < 0) {
     throw IOException("Error writing to serial port: " + std::string(strerror(errno)));
@@ -62,7 +62,7 @@ ssize_t Serial::writeRaw(const uint8_t* data, size_t size) {
   size_t total_written = 0;
 
   while (total_written < size) {
-    ssize_t ret = ::write(fd_serial_port_,
+    ssize_t ret = write_(fd_serial_port_,
                           data + total_written,
                           size - total_written);
 
