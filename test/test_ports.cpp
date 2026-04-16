@@ -111,8 +111,8 @@ TEST_F(PortsTest, GetDevicesPopulatesList) {
   });
 
   EXPECT_EQ(devices.size(), 2);
-  EXPECT_EQ(devices[0].getName(), "usb-Device_Two_0002");
-  EXPECT_EQ(devices[1].getName(), "usb-Device_One_0001");
+  EXPECT_EQ(devices[0].getName(), "usb-Device_One_0001");
+  EXPECT_EQ(devices[1].getName(), "usb-Device_Two_0002");
 }
 
 
