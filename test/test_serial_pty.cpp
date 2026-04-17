@@ -219,7 +219,7 @@ TEST_F(PseudoTerminalTest, WriteTest) {
   serial_port.setBaudRate(115200);
 
   // Create test data using smart pointer
-  auto test_data = std::make_shared<std::string>("Test Write Data");
+  std::string_view test_data("Test Write Data");
 
   // Write using our Serial class
   EXPECT_NO_THROW({ serial_port.write(test_data); });
@@ -233,7 +233,7 @@ TEST_F(PseudoTerminalTest, WriteTest) {
 
   std::string received(buffer, bytes_read);
 
-  EXPECT_EQ(received, *test_data);
+  EXPECT_EQ(received, std::string(test_data));
 }
 
 TEST_F(PseudoTerminalTest, ReadCanonicalMode) {

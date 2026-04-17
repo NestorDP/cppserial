@@ -96,14 +96,14 @@ void close();
  * Sends the provided string data to the serial port. A carriage return
  * character ('\\r') is automatically appended to the data.
  *
- * @param data Shared pointer to the string data to write
+ * @param data String view containing the data to write
  * @throws SerialException if write operation fails
- * @throws std::invalid_argument if data pointer is null
+ * @throws std::invalid_argument if data is empty
  *
  * @note The original string is not modified; a copy is made with the
  *       terminator appended.
  */
-void write(std::shared_ptr<std::string> data);
+void write(std::string_view data);
 
 /**
  * @brief Writes raw byte data to the serial port
@@ -181,6 +181,20 @@ size_t readBytes(std::shared_ptr<std::string> buffer, size_t num_bytes);
  *          for large amounts of data
  */
 size_t readUntil(std::shared_ptr<std::string> buffer, char terminator);
+
+/**
+ * @brief Reads raw byte data from the serial port
+ *
+ * Reads up to size bytes of raw data from the serial port into the
+ * provided buffer. This method is intended for non-canonical mode.
+ *
+ * @param buffer Pointer to a byte array where data will be stored
+ * @param size Maximum number of bytes to read
+ * @return Number of bytes actually read
+ * @throws SerialException if read operation fails
+ * @throws std::invalid_argument if buffer pointer is null
+ */
+ssize_t readRaw(uint8_t* buffer, size_t size);
 
 /**
  * @brief Flushes the input buffer

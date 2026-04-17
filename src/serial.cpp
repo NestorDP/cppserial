@@ -42,12 +42,12 @@ void Serial::close() {
   }
 }
 
-void Serial::write(std::shared_ptr<std::string> data) {
-  if (!data) {
-    throw IOException("Null pointer passed to write function");
+void Serial::write(std::string_view data) {
+  if (data.empty()) {
+    throw IOException("Empty string passed to write function");
   }
 
-  ssize_t bytes_written = write_(fd_serial_port_, data->c_str(), data->size());
+  ssize_t bytes_written = write_(fd_serial_port_, data.data(), data.size());
 
   if (bytes_written < 0) {
     throw IOException("Error writing to serial port: " + std::string(strerror(errno)));
