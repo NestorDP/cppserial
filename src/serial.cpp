@@ -84,18 +84,15 @@ ssize_t Serial::writeRaw(const std::vector<uint8_t>& data) {
   return writeRaw(data.data(), data.size());
 }
 
-size_t Serial::read(std::shared_ptr<std::string> buffer) {
+size_t Serial::read(std::string & buffer) {
   if (canonical_mode_ == CanonicalMode::DISABLE) {
     throw IOException(
             "read() is not supported in non-canonical mode; use readBytes() or readUntil() instead");
   }
 
-  if (!buffer) {
-    throw IOException("Null pointer passed to read function");
-  }
-
-  buffer->clear();
-  buffer->resize(max_safe_read_size_);
+  // if (buffer.empty()) {
+  //   throw IOException("Empty buffer passed to read function");
+  // }
 
   struct pollfd fd_poll;
   fd_poll.fd = fd_serial_port_;
@@ -112,13 +109,14 @@ size_t Serial::read(std::shared_ptr<std::string> buffer) {
                       " milliseconds");
   }
 
+  buffer.resize(max_safe_read_size_);
+
   // Data available: do the read
-  ssize_t bytes_read = read_(fd_serial_port_, const_cast<char*>(buffer->data()),
-                             max_safe_read_size_);
+  ssize_t bytes_read = read_(fd_serial_port_, buffer.data(), max_safe_read_size_);
   if (bytes_read < 0) {
     throw IOException(std::string("Error reading from serial port: ") + strerror(errno));
   }
-  buffer->resize(static_cast<size_t>(bytes_read));
+  buffer.resize(static_cast<size_t>(bytes_read));
   return static_cast<size_t>(bytes_read);
 }
 

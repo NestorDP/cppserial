@@ -147,7 +147,7 @@ ssize_t writeRaw(const std::vector<uint8_t>& data);
  *
  * @note The buffer will be resized to contain exactly the read data
  */
-size_t read(std::shared_ptr<std::string> buffer);
+size_t read(std::string & buffer);
 
 /**
  * @brief Reads a specific number of bytes from the serial port

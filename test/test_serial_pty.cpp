@@ -242,7 +242,7 @@ TEST_F(PseudoTerminalTest, ReadCanonicalMode) {
   serial_port.open(slave_port_);
   serial_port.setBaudRate(9600);
 
-  const std::string test_message{"Smart Pointer Test!\n"};
+  const std::string test_message{"Read canonical mode test!\n"};
 
   ssize_t bytes_written = write(master_fd_, test_message.c_str(), test_message.length());
   ASSERT_GT(bytes_written, 0) << "Failed to write to master end";
@@ -252,32 +252,13 @@ TEST_F(PseudoTerminalTest, ReadCanonicalMode) {
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   // Test reading with shared pointer
-  auto read_buffer = std::make_shared<std::string>();
+  std::string read_buffer;
   size_t bytes_read = 0;
 
   EXPECT_NO_THROW({ bytes_read = serial_port.read(read_buffer); });
 
   EXPECT_EQ(bytes_read, test_message.length());
-  EXPECT_EQ(*read_buffer, test_message);
-}
-
-TEST_F(PseudoTerminalTest, ReadWithNullBuffer) {
-  libserial::Serial serial_port;
-
-  serial_port.open(slave_port_);
-  serial_port.setBaudRate(9600);
-
-  std::shared_ptr<std::string> null_buffer;
-
-  EXPECT_THROW({
-    try {
-      serial_port.read(null_buffer);
-    }
-    catch (const libserial::IOException& e) {
-      EXPECT_STREQ("Null pointer passed to read function", e.what());
-      throw;
-    }
-  }, libserial::IOException);
+  EXPECT_EQ(read_buffer, test_message);
 }
 
 TEST_F(PseudoTerminalTest, ReadNonCanonicalMode) {
@@ -297,7 +278,7 @@ TEST_F(PseudoTerminalTest, ReadNonCanonicalMode) {
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   // Attempt to read using read() - should throw exception
-  auto read_buffer = std::make_shared<std::string>();
+  std::string read_buffer;
 
   EXPECT_THROW({
     try {
@@ -322,7 +303,7 @@ TEST_F(PseudoTerminalTest, ReadTimeout) {
   int time_out_ms = 100;
   serial_port.setReadTimeout(std::chrono::milliseconds(time_out_ms));
 
-  auto read_buffer = std::make_shared<std::string>();
+  std::string read_buffer;
 
   auto expected_what = "Read operation timed out after " + std::to_string(time_out_ms) +
                        " milliseconds";
@@ -340,7 +321,7 @@ TEST_F(PseudoTerminalTest, ReadTimeout) {
 
 TEST_F(PseudoTerminalTest, ReadWithReadFail) {
   libserial::Serial serial_port;
-  auto read_buffer = std::make_shared<std::string>();
+  std::string read_buffer;
 
   for (const auto& [error_num, error_msg] : errors_read_) {
     serial_port.setPollSystemFunction(
@@ -369,7 +350,7 @@ TEST_F(PseudoTerminalTest, ReadWithReadFail) {
 
 TEST_F(PseudoTerminalTest, ReadWithPollFail) {
   libserial::Serial serial_port;
-  auto read_buffer = std::make_shared<std::string>();
+  std::string read_buffer;
 
   for (const auto& [error_num, error_msg] : errors_poll_) {
     serial_port.setPollSystemFunction(

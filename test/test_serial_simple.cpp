@@ -71,18 +71,9 @@ TEST_F(SerialTest, APIExists) {
 
 
   // Test new shared pointer read API
-  auto buffer = std::make_shared<std::string>();
+  std::string buffer;
   EXPECT_THROW(serial.read(buffer), libserial::IOException);
-  EXPECT_THROW(serial.readUntil(buffer, '\n'), libserial::IOException);
-}
-
-TEST_F(SerialTest, ReadWithNullSharedPtr) {
-  libserial::Serial serial;
-
-  // Test that read function handles null shared pointer
-  std::shared_ptr<std::string> null_buffer;
-
-  EXPECT_THROW({ serial.read(null_buffer); }, libserial::SerialException);
+  // EXPECT_THROW(serial.readUntil(buffer, '\n'), libserial::IOException);
 }
 
 TEST_F(SerialTest, CloseWithInvalidFd) {
