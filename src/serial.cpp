@@ -90,10 +90,6 @@ size_t Serial::read(std::string & buffer) {
             "read() is not supported in non-canonical mode; use readBytes() or readUntil() instead");
   }
 
-  // if (buffer.empty()) {
-  //   throw IOException("Empty buffer passed to read function");
-  // }
-
   struct pollfd fd_poll;
   fd_poll.fd = fd_serial_port_;
   fd_poll.events = POLLIN;
@@ -120,46 +116,38 @@ size_t Serial::read(std::string & buffer) {
   return static_cast<size_t>(bytes_read);
 }
 
-size_t Serial::readBytes(std::shared_ptr<std::string> buffer, size_t num_bytes) {
+size_t Serial::readBytes(std::string & buffer, size_t num_bytes) {
   if (canonical_mode_ == CanonicalMode::ENABLE) {
     throw IOException(
             "readBytes() is not supported in canonical mode; use read() or readUntil() instead");
-  }
-
-  if (!buffer) {
-    throw IOException("Null pointer passed to readBytes function");
   }
 
   if (num_bytes == 0) {
     throw IOException("Number of bytes requested must be greater than zero");
   }
 
-  buffer->clear();
-  buffer->resize(num_bytes);
+  buffer.clear();
+  buffer.resize(num_bytes);
 
-  ssize_t bytes_read = read_(fd_serial_port_, buffer->data(), num_bytes);  // codacy-ignore[buffer-boundary]
+  ssize_t bytes_read = read_(fd_serial_port_, buffer.data(), num_bytes);  // codacy-ignore[buffer-boundary]
 
   if (bytes_read < 0) {
     throw IOException("Error reading from serial port: " + std::string(strerror(errno)));
   }
 
-  buffer->resize(static_cast<size_t>(bytes_read));
+  buffer.resize(static_cast<size_t>(bytes_read));
   return static_cast<size_t>(bytes_read);
 }
 
-size_t Serial::readUntil(std::shared_ptr<std::string> buffer, char terminator) {
-  if (!buffer) {
-    throw IOException("Null pointer passed to readUntil function");
-  }
-
-  buffer->clear();
+size_t Serial::readUntil(std::string & buffer, char terminator) {
+  buffer.clear();
   char temp_char = '\0';
 
   auto start_time = std::chrono::steady_clock::now();
 
   while (temp_char != terminator) {
     // Check buffer size limit to prevent excessive memory usage
-    if (buffer->size() >= max_safe_read_size_) {
+    if (buffer.size() >= max_safe_read_size_) {
       throw IOException("Read buffer exceeded maximum size limit of " +
                         std::to_string(max_safe_read_size_) +
                         " bytes without finding terminator");
@@ -210,10 +198,10 @@ size_t Serial::readUntil(std::shared_ptr<std::string> buffer, char terminator) {
     }
 
     // Add the character to buffer (including terminator)
-    buffer->push_back(temp_char);
+    buffer.push_back(temp_char);
   }
 
-  return buffer->size();
+  return buffer.size();
 }
 
 void Serial::flushInputBuffer() {

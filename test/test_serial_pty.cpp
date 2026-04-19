@@ -390,33 +390,13 @@ TEST_F(PseudoTerminalTest, ReadBytesNonCanonicalMode) {
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   // Test reading with shared pointer
-  auto read_buffer = std::make_shared<std::string>();
+  std::string read_buffer;
   size_t bytes_read = 0;
 
   EXPECT_NO_THROW({ bytes_read = serial_port.readBytes(read_buffer, test_message.length()); });
 
   EXPECT_EQ(bytes_read, test_message.length());
-  EXPECT_EQ(*read_buffer, test_message);
-}
-
-TEST_F(PseudoTerminalTest, ReadBytesWithNullBuffer) {
-  libserial::Serial serial_port;
-
-  serial_port.open(slave_port_);
-  serial_port.setBaudRate(9600);
-  serial_port.setCanonicalMode(libserial::CanonicalMode::DISABLE);
-
-  std::shared_ptr<std::string> null_buffer;
-
-  EXPECT_THROW({
-    try {
-      serial_port.readBytes(null_buffer, 10);
-    }
-    catch (const libserial::IOException& e) {
-      EXPECT_STREQ("Null pointer passed to readBytes function", e.what());
-      throw;
-    }
-  }, libserial::IOException);
+  EXPECT_EQ(read_buffer, test_message);
 }
 
 TEST_F(PseudoTerminalTest, ReadBytesWithInvalidNumBytes) {
@@ -426,7 +406,7 @@ TEST_F(PseudoTerminalTest, ReadBytesWithInvalidNumBytes) {
   serial_port.setBaudRate(9600);
   serial_port.setCanonicalMode(libserial::CanonicalMode::DISABLE);
 
-  auto read_buffer = std::make_shared<std::string>();
+  std::string read_buffer;
 
   EXPECT_THROW({
     try {
@@ -446,7 +426,7 @@ TEST_F(PseudoTerminalTest, ReadBytesWithReadFail) {
   serial_port.setBaudRate(9600);
   serial_port.setCanonicalMode(libserial::CanonicalMode::DISABLE);
 
-  auto read_buffer = std::make_shared<std::string>();
+  std::string read_buffer;
 
   for (const auto& [error_num, error_msg] : errors_read_) {
     serial_port.setReadSystemFunction(
@@ -476,7 +456,7 @@ TEST_F(PseudoTerminalTest, ReadBytesCanonicalMode) {
   serial_port.setBaudRate(9600);
   serial_port.setCanonicalMode(libserial::CanonicalMode::ENABLE);
 
-  auto read_buffer = std::make_shared<std::string>();
+  std::string read_buffer;
 
   EXPECT_THROW({
     try {
@@ -508,30 +488,11 @@ TEST_F(PseudoTerminalTest, ReadUntil) {
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   // Test reading with shared pointer - only read what's available
-  auto read_buffer = std::make_shared<std::string>();
+  std::string read_buffer;
 
   EXPECT_NO_THROW({serial_port.readUntil(read_buffer, '!'); });
 
-  EXPECT_EQ(*read_buffer, "Read Until!");
-}
-
-TEST_F(PseudoTerminalTest, ReadUntilWithNullBuffer) {
-  libserial::Serial serial_port;
-
-  serial_port.open(slave_port_);
-  serial_port.setBaudRate(9600);
-
-  std::shared_ptr<std::string> null_buffer;
-
-  EXPECT_THROW({
-    try {
-      serial_port.readUntil(null_buffer, '!');
-    }
-    catch (const libserial::IOException& e) {
-      EXPECT_STREQ("Null pointer passed to readUntil function", e.what());
-      throw;
-    }
-  }, libserial::IOException);
+  EXPECT_EQ(read_buffer, "Read Until!");
 }
 
 TEST_F(PseudoTerminalTest, ReadUntilTimeout) {
@@ -550,14 +511,14 @@ TEST_F(PseudoTerminalTest, ReadUntilTimeout) {
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   // Test reading with shared pointer - only read what's available
-  auto read_buffer = std::make_shared<std::string>();
+  std::string read_buffer;
 
   EXPECT_THROW({serial_port.readUntil(read_buffer, '!'); }, libserial::IOException);
 }
 
 TEST_F(PseudoTerminalTest, ReadUntilWithReadFail) {
   libserial::Serial serial_port;
-  auto read_buffer = std::make_shared<std::string>();
+  std::string read_buffer;
 
   for (const auto& [error_num, error_msg] : errors_read_) {
     if (error_num == EAGAIN || error_num == EWOULDBLOCK) {
@@ -590,7 +551,7 @@ TEST_F(PseudoTerminalTest, ReadUntilWithReadFail) {
 
 TEST_F(PseudoTerminalTest, ReadUntilWithPollFail) {
   libserial::Serial serial_port;
-  auto read_buffer = std::make_shared<std::string>();
+  std::string read_buffer;
 
   for (const auto& [error_num, error_msg] : errors_poll_) {
     serial_port.setPollSystemFunction(
@@ -631,7 +592,7 @@ TEST_F(PseudoTerminalTest, ReadUntilWithOverflowBuffer) {
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   // Test reading with shared pointer - only read what's available
-  auto read_buffer = std::make_shared<std::string>();
+  std::string read_buffer;
 
   auto expected_what = "Read buffer exceeded maximum size limit of " +
                        std::to_string(serial_port.getMaxSafeReadSize()) +

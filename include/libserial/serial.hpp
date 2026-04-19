@@ -164,7 +164,7 @@ size_t read(std::string & buffer);
  *
  * @note The buffer will be resized to contain exactly the read data
  */
-size_t readBytes(std::shared_ptr<std::string> buffer, size_t num_bytes);
+size_t readBytes(std::string & buffer, size_t num_bytes);
 
 /**
  * @brief Reads data until a specific terminator character is found
@@ -180,7 +180,7 @@ size_t readBytes(std::shared_ptr<std::string> buffer, size_t num_bytes);
  * @warning This method reads one byte at a time and may be slower
  *          for large amounts of data
  */
-size_t readUntil(std::shared_ptr<std::string> buffer, char terminator);
+size_t readUntil(std::string & buffer, char terminator);
 
 /**
  * @brief Reads raw byte data from the serial port
