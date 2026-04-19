@@ -22,13 +22,10 @@ Serial::~Serial() {
 }
 
 void Serial::open(const std::string& port) {
-  fd_serial_port_ = ::open(port.c_str(), O_RDWR | O_NOCTTY | O_NDELAY | O_NONBLOCK);
+  fd_serial_port_ = ::open(port.c_str(), O_RDWR | O_NOCTTY);
 
   if (fd_serial_port_ == -1) {
     throw SerialException("Error opening port " + port + ": " + strerror(errno));
-  }
-  else {
-    fcntl(fd_serial_port_, F_SETFL, 0);
   }
 }
 
