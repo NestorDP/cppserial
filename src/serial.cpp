@@ -84,27 +84,25 @@ ssize_t Serial::writeRaw(const std::vector<uint8_t>& data) {
 size_t Serial::read(std::string & buffer) {
   if (canonical_mode_ == CanonicalMode::DISABLE) {
     throw IOException(
-            "read() is not supported in non-canonical mode; use readBytes() or readUntil() instead");
+            "read() is not supported in non-canonical mode; use readBytes(), readUntil() or readRaw() instead");
   }
 
   struct pollfd fd_poll;
   fd_poll.fd = fd_serial_port_;
   fd_poll.events = POLLIN;
 
-  // 0 => no wait (immediate return), -1 => block forever, positive => wait specified milliseconds
   int timeout_ms = static_cast<int>(read_timeout_ms_.count());
-  int pr = poll_(&fd_poll, 1, timeout_ms);
-  if (pr < 0) {
+  int poll_result = poll_(&fd_poll, 1, timeout_ms);
+  if (poll_result < 0) {
     throw IOException(std::string("Error in poll(): ") + strerror(errno));
   }
-  if (pr == 0) {
+  if (poll_result == 0) {
     throw IOException("Read operation timed out after " + std::to_string(timeout_ms) +
                       " milliseconds");
   }
 
   buffer.resize(max_safe_read_size_);
 
-  // Data available: do the read
   ssize_t bytes_read = read_(fd_serial_port_, buffer.data(), max_safe_read_size_);
   if (bytes_read < 0) {
     throw IOException(std::string("Error reading from serial port: ") + strerror(errno));
@@ -143,7 +141,6 @@ size_t Serial::readUntil(std::string & buffer, char terminator) {
   auto start_time = std::chrono::steady_clock::now();
 
   while (temp_char != terminator) {
-    // Check buffer size limit to prevent excessive memory usage
     if (buffer.size() >= max_safe_read_size_) {
       throw IOException("Read buffer exceeded maximum size limit of " +
                         std::to_string(max_safe_read_size_) +
@@ -160,8 +157,6 @@ size_t Serial::readUntil(std::string & buffer, char terminator) {
       }
 
       // Use poll() to check if data is available with remaining timeout.
-      // poll() does not have the FD_SETSIZE limitation that select() has
-      // and is more robust for larger file descriptor values.
       struct pollfd pfd;
       pfd.fd = fd_serial_port_;
       pfd.events = POLLIN;
@@ -178,23 +173,19 @@ size_t Serial::readUntil(std::string & buffer, char terminator) {
       }
     }
 
-    // Data is available, perform the read
     ssize_t bytes_read = read_(fd_serial_port_, &temp_char, 1);
 
     if (bytes_read < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        // Non-blocking read, no data available right now
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         continue;
       }
       throw IOException("Error reading from serial port: " + std::string(strerror(errno)));
     }
     else if (bytes_read == 0) {
-      // End of file or connection closed
       throw IOException("Connection closed while reading: no terminator found");
     }
 
-    // Add the character to buffer (including terminator)
     buffer.push_back(temp_char);
   }
 

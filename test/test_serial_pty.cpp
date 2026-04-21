@@ -286,7 +286,7 @@ TEST_F(PseudoTerminalTest, ReadNonCanonicalMode) {
     }
     catch (const libserial::IOException& e) {
       EXPECT_STREQ(
-        "read() is not supported in non-canonical mode; use readBytes() or readUntil() instead",
+        "read() is not supported in non-canonical mode; use readBytes(), readUntil() or readRaw() instead",
         e.what());
       throw;
     }
