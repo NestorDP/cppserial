@@ -466,7 +466,7 @@ std::function<ssize_t(int, void*, size_t)> read_ =
 
 /**
  * @brief Write system call function wrapper
- * 
+ *
  * Allows injection of custom write function for testing.
  */
 std::function<ssize_t(int, const void*, size_t)> write_ =

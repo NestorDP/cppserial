@@ -47,10 +47,9 @@ TEST_F(SerialTest, ConstructorWithInvalidPort) {
 TEST_F(SerialTest, WriteWithNullPtr) {
   libserial::Serial serial;
 
-  // Test that write function handles null pointer
-  std::string_view null_message;
-
   EXPECT_THROW({
+    // Test that write function handles null pointer
+    std::string_view null_message;
     serial.write(null_message);
   }, libserial::SerialException);
 }
@@ -94,7 +93,8 @@ TEST_F(SerialTest, WriteRawNullBuffer) {
   EXPECT_THROW({
     try {
       serial_port.writeRaw(nullptr, 10);
-    } catch (const libserial::IOException& e) {
+    }
+    catch (const libserial::IOException& e) {
       EXPECT_STREQ("Invalid buffer passed to writeRaw", e.what());
       throw;
     }
@@ -107,7 +107,8 @@ TEST_F(SerialTest, WriteRawZeroSize) {
   EXPECT_THROW({
     try {
       serial_port.writeRaw(&dummy, 0);
-    } catch (const libserial::IOException& e) {
+    }
+    catch (const libserial::IOException& e) {
       EXPECT_STREQ("Invalid buffer passed to writeRaw", e.what());
       throw;
     }

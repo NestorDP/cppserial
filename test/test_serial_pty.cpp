@@ -268,12 +268,12 @@ TEST_F(PseudoTerminalTest, WriteRawPartialWrites) {
 
   serial_port.setWriteSystemFunction(
     [&call_count](int, const void* buf, size_t len) -> ssize_t {
-      call_count++;
+    call_count++;
 
-      // Simulate partial writes (2 bytes per call)
-      size_t to_write = std::min<size_t>(2, len);
-      return to_write;
-    });
+    // Simulate partial writes (2 bytes per call)
+    size_t to_write = std::min<size_t>(2, len);
+    return to_write;
+  });
 
   ssize_t written = serial_port.writeRaw(data.data(), data.size());
 
@@ -291,12 +291,12 @@ TEST_F(PseudoTerminalTest, WriteRawWithEINTR) {
 
   serial_port.setWriteSystemFunction(
     [&call_count](int, const void*, size_t len) -> ssize_t {
-      if (call_count++ == 0) {
-        errno = EINTR;
-        return -1;
-      }
-      return len;
-    });
+    if (call_count++ == 0) {
+      errno = EINTR;
+      return -1;
+    }
+    return len;
+  });
 
   EXPECT_NO_THROW({
     ssize_t written = serial_port.writeRaw(data.data(), data.size());
@@ -312,14 +312,15 @@ TEST_F(PseudoTerminalTest, WriteRawWithError) {
 
   serial_port.setWriteSystemFunction(
     [](int, const void*, size_t) -> ssize_t {
-      errno = EIO;
-      return -1;
-    });
+    errno = EIO;
+    return -1;
+  });
 
   EXPECT_THROW({
     try {
       serial_port.writeRaw(data.data(), data.size());
-    } catch (const libserial::IOException& e) {
+    }
+    catch (const libserial::IOException& e) {
       EXPECT_STREQ("Error writing raw data: Input/output error", e.what());
       throw;
     }
@@ -330,9 +331,8 @@ TEST_F(PseudoTerminalTest, WriteRawLargeBuffer) {
   libserial::Serial serial_port;
   serial_port.open(slave_port_);
 
-  std::vector<uint8_t> data(4096, 0xAA);
-
   EXPECT_NO_THROW({
+    std::vector<uint8_t> data(4096, 0xAA);
     ssize_t written = serial_port.writeRaw(data.data(), data.size());
     EXPECT_EQ(written, data.size());
   });
@@ -353,14 +353,16 @@ TEST_F(PseudoTerminalTest, ReadCanonicalMode) {
   fsync(master_fd_);
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-  // Test reading with shared pointer
-  std::string read_buffer;
-  size_t bytes_read = 0;
+  {
+    // Test reading with shared pointer
+    std::string read_buffer;
+    size_t bytes_read = 0;
 
-  EXPECT_NO_THROW({ bytes_read = serial_port.read(read_buffer); });
+    EXPECT_NO_THROW({ bytes_read = serial_port.read(read_buffer); });
 
-  EXPECT_EQ(bytes_read, test_message.length());
-  EXPECT_EQ(read_buffer, test_message);
+    EXPECT_EQ(bytes_read, test_message.length());
+    EXPECT_EQ(read_buffer, test_message);
+  }
 }
 
 TEST_F(PseudoTerminalTest, ReadNonCanonicalMode) {
@@ -379,11 +381,10 @@ TEST_F(PseudoTerminalTest, ReadNonCanonicalMode) {
   fsync(master_fd_);
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-  // Attempt to read using read() - should throw exception
-  std::string read_buffer;
-
   EXPECT_THROW({
     try {
+      // Attempt to read using read() - should throw exception
+      std::string read_buffer;
       serial_port.read(read_buffer);
     }
     catch (const libserial::IOException& e) {
@@ -405,13 +406,12 @@ TEST_F(PseudoTerminalTest, ReadTimeout) {
   int time_out_ms = 100;
   serial_port.setReadTimeout(std::chrono::milliseconds(time_out_ms));
 
-  std::string read_buffer;
-
   auto expected_what = "Read operation timed out after " + std::to_string(time_out_ms) +
                        " milliseconds";
 
   EXPECT_THROW({
     try {
+      std::string read_buffer;
       serial_port.read(read_buffer);
     }
     catch (const libserial::IOException& e) {
@@ -508,10 +508,9 @@ TEST_F(PseudoTerminalTest, ReadBytesWithInvalidNumBytes) {
   serial_port.setBaudRate(9600);
   serial_port.setCanonicalMode(libserial::CanonicalMode::DISABLE);
 
-  std::string read_buffer;
-
   EXPECT_THROW({
     try {
+      std::string read_buffer;
       serial_port.readBytes(read_buffer, 0);
     }
     catch (const libserial::IOException& e) {
@@ -558,10 +557,9 @@ TEST_F(PseudoTerminalTest, ReadBytesCanonicalMode) {
   serial_port.setBaudRate(9600);
   serial_port.setCanonicalMode(libserial::CanonicalMode::ENABLE);
 
-  std::string read_buffer;
-
   EXPECT_THROW({
     try {
+      std::string read_buffer;
       serial_port.readBytes(read_buffer, 5);
       ADD_FAILURE() << "Expected SerialException but no exception was thrown";
     }
@@ -612,15 +610,15 @@ TEST_F(PseudoTerminalTest, ReadUntilTimeout) {
   fsync(master_fd_);
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-  // Test reading with shared pointer - only read what's available
-  std::string read_buffer;
-
-  EXPECT_THROW({serial_port.readUntil(read_buffer, '!'); }, libserial::IOException);
+  EXPECT_THROW({
+    // Test reading with shared pointer - only read what's available
+    std::string read_buffer;
+    serial_port.readUntil(read_buffer, '!');
+  }, libserial::IOException);
 }
 
 TEST_F(PseudoTerminalTest, ReadUntilWithReadFail) {
   libserial::Serial serial_port;
-  std::string read_buffer;
 
   for (const auto& [error_num, error_msg] : errors_read_) {
     if (error_num == EAGAIN || error_num == EWOULDBLOCK) {
@@ -641,6 +639,7 @@ TEST_F(PseudoTerminalTest, ReadUntilWithReadFail) {
 
     EXPECT_THROW({
       try {
+        std::string read_buffer;
         serial_port.readUntil(read_buffer, '!');
       }
       catch (const libserial::IOException& e) {
@@ -653,7 +652,6 @@ TEST_F(PseudoTerminalTest, ReadUntilWithReadFail) {
 
 TEST_F(PseudoTerminalTest, ReadUntilWithPollFail) {
   libserial::Serial serial_port;
-  std::string read_buffer;
 
   for (const auto& [error_num, error_msg] : errors_poll_) {
     serial_port.setPollSystemFunction(
@@ -666,6 +664,7 @@ TEST_F(PseudoTerminalTest, ReadUntilWithPollFail) {
 
     EXPECT_THROW({
       try {
+        std::string read_buffer;
         serial_port.readUntil(read_buffer, '!');
       }
       catch (const libserial::IOException& e) {
@@ -693,15 +692,13 @@ TEST_F(PseudoTerminalTest, ReadUntilWithOverflowBuffer) {
   fsync(master_fd_);
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-  // Test reading with shared pointer - only read what's available
-  std::string read_buffer;
-
   auto expected_what = "Read buffer exceeded maximum size limit of " +
                        std::to_string(serial_port.getMaxSafeReadSize()) +
                        " bytes without finding terminator";
 
   EXPECT_THROW({
     try {
+      std::string read_buffer;
       serial_port.readUntil(read_buffer, '!');
     }
     catch (const libserial::IOException& e) {
@@ -720,10 +717,9 @@ TEST_F(PseudoTerminalTest, ReadRawCanonicalMode) {
   // Enable canonical mode
   serial.setCanonicalMode(libserial::CanonicalMode::ENABLE);
 
-  std::vector<uint8_t> buffer(10);
-
   EXPECT_THROW({
     try {
+      std::vector<uint8_t> buffer(10);
       serial.readRaw(buffer.data(), buffer.size());
     }
     catch (const libserial::IOException& e) {
@@ -787,8 +783,8 @@ TEST_F(PseudoTerminalTest, ReadRawPollTimeoutSimulated) {
   serial.setCanonicalMode(libserial::CanonicalMode::DISABLE);
   serial.setPollSystemFunction(
     [](struct pollfd*, nfds_t, int) {
-      return 0;  // timeout
-    });
+    return 0;    // timeout
+  });
 
   std::vector<uint8_t> buffer(10);
 
@@ -803,16 +799,16 @@ TEST_F(PseudoTerminalTest, ReadRawPollError) {
   serial.setCanonicalMode(libserial::CanonicalMode::DISABLE);
   serial.setPollSystemFunction(
     [](struct pollfd*, nfds_t, int) {
-      errno = EINVAL;
-      return -1;
-    });
-
-  std::vector<uint8_t> buffer(10);
+    errno = EINVAL;
+    return -1;
+  });
 
   EXPECT_THROW({
     try {
+      std::vector<uint8_t> buffer(10);
       serial.readRaw(buffer.data(), buffer.size());
-    } catch (const libserial::IOException& e) {
+    }
+    catch (const libserial::IOException& e) {
       EXPECT_STREQ(
         std::string("Error in poll(): " + std::string(strerror(EINVAL))).c_str(),
         e.what());
@@ -826,20 +822,22 @@ TEST_F(PseudoTerminalTest, ReadRawReadError) {
   serial.setFdForTest(slave_fd_);
   serial.setCanonicalMode(libserial::CanonicalMode::DISABLE);
   serial.setPollSystemFunction(
-    [](struct pollfd*, nfds_t, int) { return 1; });
+    [](struct pollfd*, nfds_t, int) {
+    return 1;
+  });
 
   serial.setReadSystemFunction(
     [](int, void*, size_t) -> ssize_t {
-      errno = EIO;
-      return -1;
-    });
-
-  std::vector<uint8_t> buffer(10);
+    errno = EIO;
+    return -1;
+  });
 
   EXPECT_THROW({
     try {
+      std::vector<uint8_t> buffer(10);
       serial.readRaw(buffer.data(), buffer.size());
-    } catch (const libserial::IOException& e) {
+    }
+    catch (const libserial::IOException& e) {
       EXPECT_STREQ(
         std::string("Error reading raw data: " + std::string(strerror(EIO))).c_str(),
         e.what());
@@ -854,23 +852,26 @@ TEST_F(PseudoTerminalTest, ReadRawMultipleChunks) {
   serial.setCanonicalMode(libserial::CanonicalMode::DISABLE);
 
   serial.setPollSystemFunction(
-    [](struct pollfd*, nfds_t, int) { return 1; });
+    [](struct pollfd*, nfds_t, int) {
+    return 1;
+  });
 
   int call = 0;
 
   serial.setReadSystemFunction(
     [&call](int, void* buf, size_t) -> ssize_t {
-      uint8_t* b = static_cast<uint8_t*>(buf);
+    uint8_t* b = static_cast<uint8_t*>(buf);
 
-      if (call == 0) {
-        b[0] = 'A';
-        call++;
-        return 1;
-      } else {
-        b[0] = 'B';
-        return 1;
-      }
-    });
+    if (call == 0) {
+      b[0] = 'A';
+      call++;
+      return 1;
+    }
+    else {
+      b[0] = 'B';
+      return 1;
+    }
+  });
 
   std::vector<uint8_t> buffer(2);
 

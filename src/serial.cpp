@@ -60,8 +60,8 @@ ssize_t Serial::writeRaw(const uint8_t* data, size_t size) {
 
   while (total_written < size) {
     ssize_t ret = write_(fd_serial_port_,
-                          data + total_written,
-                          size - total_written);
+                         data + total_written,
+                         size - total_written);
 
     if (ret < 0) {
       if (errno == EINTR) continue;
@@ -197,7 +197,7 @@ ssize_t Serial::readRaw(uint8_t* buffer, size_t size) {
     throw IOException(
             "readRaw() is not supported in canonical mode; use read() or readUntil() instead");
   }
-  
+
   if (!buffer || size == 0) {
     throw IOException("Invalid buffer passed to readRaw");
   }
