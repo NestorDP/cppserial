@@ -236,6 +236,108 @@ TEST_F(PseudoTerminalTest, WriteTest) {
   EXPECT_EQ(received, std::string(test_data));
 }
 
+TEST_F(PseudoTerminalTest, WriteRawBasic) {
+  libserial::Serial serial_port;
+
+  serial_port.open(slave_port_);
+  serial_port.setBaudRate(115200);
+
+  std::vector<uint8_t> data = {0x00, 0xFF, 0x10, 0x41, 0x00};
+
+  EXPECT_NO_THROW({
+    ssize_t written = serial_port.writeRaw(data.data(), data.size());
+    EXPECT_EQ(written, data.size());
+  });
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+  uint8_t buffer[100] = {0};
+  ssize_t bytes_read = read(master_fd_, buffer, sizeof(buffer));
+
+  ASSERT_EQ(bytes_read, data.size());
+  EXPECT_EQ(std::vector<uint8_t>(buffer, buffer + bytes_read), data);
+}
+
+TEST_F(PseudoTerminalTest, WriteRawPartialWrites) {
+  libserial::Serial serial_port;
+  serial_port.open(slave_port_);
+
+  std::vector<uint8_t> data = {1,2,3,4,5,6};
+
+  size_t call_count = 0;
+
+  serial_port.setWriteSystemFunction(
+    [&call_count](int, const void* buf, size_t len) -> ssize_t {
+      call_count++;
+
+      // Simulate partial writes (2 bytes per call)
+      size_t to_write = std::min<size_t>(2, len);
+      return to_write;
+    });
+
+  ssize_t written = serial_port.writeRaw(data.data(), data.size());
+
+  EXPECT_EQ(written, data.size());
+  EXPECT_GT(call_count, 1);  // ensure loop was used
+}
+
+TEST_F(PseudoTerminalTest, WriteRawWithEINTR) {
+  libserial::Serial serial_port;
+  serial_port.open(slave_port_);
+
+  std::vector<uint8_t> data = {1,2,3};
+
+  int call_count = 0;
+
+  serial_port.setWriteSystemFunction(
+    [&call_count](int, const void*, size_t len) -> ssize_t {
+      if (call_count++ == 0) {
+        errno = EINTR;
+        return -1;
+      }
+      return len;
+    });
+
+  EXPECT_NO_THROW({
+    ssize_t written = serial_port.writeRaw(data.data(), data.size());
+    EXPECT_EQ(written, data.size());
+  });
+}
+
+TEST_F(PseudoTerminalTest, WriteRawWithError) {
+  libserial::Serial serial_port;
+  serial_port.open(slave_port_);
+
+  std::vector<uint8_t> data = {1,2,3};
+
+  serial_port.setWriteSystemFunction(
+    [](int, const void*, size_t) -> ssize_t {
+      errno = EIO;
+      return -1;
+    });
+
+  EXPECT_THROW({
+    try {
+      serial_port.writeRaw(data.data(), data.size());
+    } catch (const libserial::IOException& e) {
+      EXPECT_STREQ("Error writing raw data: Input/output error", e.what());
+      throw;
+    }
+  }, libserial::IOException);
+}
+
+TEST_F(PseudoTerminalTest, WriteRawLargeBuffer) {
+  libserial::Serial serial_port;
+  serial_port.open(slave_port_);
+
+  std::vector<uint8_t> data(4096, 0xAA);
+
+  EXPECT_NO_THROW({
+    ssize_t written = serial_port.writeRaw(data.data(), data.size());
+    EXPECT_EQ(written, data.size());
+  });
+}
+
 TEST_F(PseudoTerminalTest, ReadCanonicalMode) {
   libserial::Serial serial_port;
 
@@ -609,104 +711,172 @@ TEST_F(PseudoTerminalTest, ReadUntilWithOverflowBuffer) {
   }, libserial::IOException);
 }
 
-TEST_F(PseudoTerminalTest, WriteRawBasic) {
-  libserial::Serial serial_port;
+TEST_F(PseudoTerminalTest, ReadRawCanonicalMode) {
+  libserial::Serial serial;
 
-  serial_port.open(slave_port_);
-  serial_port.setBaudRate(115200);
+  serial.open(slave_port_);
+  serial.setBaudRate(9600);
 
-  std::vector<uint8_t> data = {0x00, 0xFF, 0x10, 0x41, 0x00};
+  // Enable canonical mode
+  serial.setCanonicalMode(libserial::CanonicalMode::ENABLE);
 
-  EXPECT_NO_THROW({
-    ssize_t written = serial_port.writeRaw(data.data(), data.size());
-    EXPECT_EQ(written, data.size());
-  });
-
-  std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-  uint8_t buffer[100] = {0};
-  ssize_t bytes_read = read(master_fd_, buffer, sizeof(buffer));
-
-  ASSERT_EQ(bytes_read, data.size());
-  EXPECT_EQ(std::vector<uint8_t>(buffer, buffer + bytes_read), data);
-}
-
-TEST_F(PseudoTerminalTest, WriteRawPartialWrites) {
-  libserial::Serial serial_port;
-  serial_port.open(slave_port_);
-
-  std::vector<uint8_t> data = {1,2,3,4,5,6};
-
-  size_t call_count = 0;
-
-  serial_port.setWriteSystemFunction(
-    [&call_count](int, const void* buf, size_t len) -> ssize_t {
-      call_count++;
-
-      // Simulate partial writes (2 bytes per call)
-      size_t to_write = std::min<size_t>(2, len);
-      return to_write;
-    });
-
-  ssize_t written = serial_port.writeRaw(data.data(), data.size());
-
-  EXPECT_EQ(written, data.size());
-  EXPECT_GT(call_count, 1);  // ensure loop was used
-}
-
-TEST_F(PseudoTerminalTest, WriteRawWithEINTR) {
-  libserial::Serial serial_port;
-  serial_port.open(slave_port_);
-
-  std::vector<uint8_t> data = {1,2,3};
-
-  int call_count = 0;
-
-  serial_port.setWriteSystemFunction(
-    [&call_count](int, const void*, size_t len) -> ssize_t {
-      if (call_count++ == 0) {
-        errno = EINTR;
-        return -1;
-      }
-      return len;
-    });
-
-  EXPECT_NO_THROW({
-    ssize_t written = serial_port.writeRaw(data.data(), data.size());
-    EXPECT_EQ(written, data.size());
-  });
-}
-
-TEST_F(PseudoTerminalTest, WriteRawWithError) {
-  libserial::Serial serial_port;
-  serial_port.open(slave_port_);
-
-  std::vector<uint8_t> data = {1,2,3};
-
-  serial_port.setWriteSystemFunction(
-    [](int, const void*, size_t) -> ssize_t {
-      errno = EIO;
-      return -1;
-    });
+  std::vector<uint8_t> buffer(10);
 
   EXPECT_THROW({
     try {
-      serial_port.writeRaw(data.data(), data.size());
-    } catch (const libserial::IOException& e) {
-      EXPECT_STREQ("Error writing raw data: Input/output error", e.what());
+      serial.readRaw(buffer.data(), buffer.size());
+    }
+    catch (const libserial::IOException& e) {
+      EXPECT_STREQ(
+        "readRaw() is not supported in canonical mode; use read() or readUntil() instead",
+        e.what());
       throw;
     }
   }, libserial::IOException);
 }
 
-TEST_F(PseudoTerminalTest, WriteRawLargeBuffer) {
-  libserial::Serial serial_port;
-  serial_port.open(slave_port_);
+TEST_F(PseudoTerminalTest, ReadRawFullRead) {
+  libserial::Serial serial;
+  serial.open(slave_port_);
+  serial.setCanonicalMode(libserial::CanonicalMode::DISABLE);
+  serial.setReadTimeout(std::chrono::milliseconds(500));
 
-  std::vector<uint8_t> data(4096, 0xAA);
+  const std::string msg = "HelloRaw";
+  write(master_fd_, msg.data(), msg.size());
 
-  EXPECT_NO_THROW({
-    ssize_t written = serial_port.writeRaw(data.data(), data.size());
-    EXPECT_EQ(written, data.size());
-  });
+  std::vector<uint8_t> buffer(msg.size());
+
+  ssize_t n = serial.readRaw(buffer.data(), buffer.size());
+
+  EXPECT_EQ(n, msg.size());
+  EXPECT_EQ(std::string(buffer.begin(), buffer.end()), msg);
+}
+
+TEST_F(PseudoTerminalTest, ReadRawPartialTimeout) {
+  libserial::Serial serial;
+  serial.open(slave_port_);
+  serial.setCanonicalMode(libserial::CanonicalMode::DISABLE);
+  serial.setReadTimeout(std::chrono::milliseconds(100));
+
+  const std::string msg = "ABC";
+  write(master_fd_, msg.data(), msg.size());
+
+  std::vector<uint8_t> buffer(10);
+
+  ssize_t n = serial.readRaw(buffer.data(), buffer.size());
+
+  EXPECT_EQ(n, msg.size());
+}
+
+TEST_F(PseudoTerminalTest, ReadRawTimeoutNoData) {
+  libserial::Serial serial;
+  serial.open(slave_port_);
+  serial.setCanonicalMode(libserial::CanonicalMode::DISABLE);
+  serial.setReadTimeout(std::chrono::milliseconds(100));
+
+  std::vector<uint8_t> buffer(10);
+
+  ssize_t n = serial.readRaw(buffer.data(), buffer.size());
+
+  EXPECT_EQ(n, 0);
+}
+
+TEST_F(PseudoTerminalTest, ReadRawPollTimeoutSimulated) {
+  libserial::Serial serial;
+  serial.setFdForTest(slave_fd_);
+  serial.setCanonicalMode(libserial::CanonicalMode::DISABLE);
+  serial.setPollSystemFunction(
+    [](struct pollfd*, nfds_t, int) {
+      return 0;  // timeout
+    });
+
+  std::vector<uint8_t> buffer(10);
+
+  ssize_t n = serial.readRaw(buffer.data(), buffer.size());
+
+  EXPECT_EQ(n, 0);
+}
+
+TEST_F(PseudoTerminalTest, ReadRawPollError) {
+  libserial::Serial serial;
+  serial.setFdForTest(slave_fd_);
+  serial.setCanonicalMode(libserial::CanonicalMode::DISABLE);
+  serial.setPollSystemFunction(
+    [](struct pollfd*, nfds_t, int) {
+      errno = EINVAL;
+      return -1;
+    });
+
+  std::vector<uint8_t> buffer(10);
+
+  EXPECT_THROW({
+    try {
+      serial.readRaw(buffer.data(), buffer.size());
+    } catch (const libserial::IOException& e) {
+      EXPECT_STREQ(
+        std::string("Error in poll(): " + std::string(strerror(EINVAL))).c_str(),
+        e.what());
+      throw;
+    }
+  }, libserial::IOException);
+}
+
+TEST_F(PseudoTerminalTest, ReadRawReadError) {
+  libserial::Serial serial;
+  serial.setFdForTest(slave_fd_);
+  serial.setCanonicalMode(libserial::CanonicalMode::DISABLE);
+  serial.setPollSystemFunction(
+    [](struct pollfd*, nfds_t, int) { return 1; });
+
+  serial.setReadSystemFunction(
+    [](int, void*, size_t) -> ssize_t {
+      errno = EIO;
+      return -1;
+    });
+
+  std::vector<uint8_t> buffer(10);
+
+  EXPECT_THROW({
+    try {
+      serial.readRaw(buffer.data(), buffer.size());
+    } catch (const libserial::IOException& e) {
+      EXPECT_STREQ(
+        std::string("Error reading raw data: " + std::string(strerror(EIO))).c_str(),
+        e.what());
+      throw;
+    }
+  }, libserial::IOException);
+}
+
+TEST_F(PseudoTerminalTest, ReadRawMultipleChunks) {
+  libserial::Serial serial;
+  serial.setFdForTest(slave_fd_);
+  serial.setCanonicalMode(libserial::CanonicalMode::DISABLE);
+
+  serial.setPollSystemFunction(
+    [](struct pollfd*, nfds_t, int) { return 1; });
+
+  int call = 0;
+
+  serial.setReadSystemFunction(
+    [&call](int, void* buf, size_t) -> ssize_t {
+      uint8_t* b = static_cast<uint8_t*>(buf);
+
+      if (call == 0) {
+        b[0] = 'A';
+        call++;
+        return 1;
+      } else {
+        b[0] = 'B';
+        return 1;
+      }
+    });
+
+  std::vector<uint8_t> buffer(2);
+
+  ssize_t n = serial.readRaw(buffer.data(), buffer.size());
+
+  EXPECT_EQ(n, 2);
+  EXPECT_EQ(buffer[0], 'A');
+  EXPECT_EQ(buffer[1], 'B');
 }

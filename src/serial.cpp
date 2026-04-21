@@ -192,6 +192,71 @@ size_t Serial::readUntil(std::string & buffer, char terminator) {
   return buffer.size();
 }
 
+ssize_t Serial::readRaw(uint8_t* buffer, size_t size) {
+  if (canonical_mode_ == CanonicalMode::ENABLE) {
+    throw IOException(
+            "readRaw() is not supported in canonical mode; use read() or readUntil() instead");
+  }
+  
+  if (!buffer || size == 0) {
+    throw IOException("Invalid buffer passed to readRaw");
+  }
+
+  size_t total_read = 0;
+
+  auto start_time = std::chrono::steady_clock::now();
+
+  while (total_read < size) {
+    int timeout_ms = -1;
+    if (read_timeout_ms_.count() > 0) {
+      auto now = std::chrono::steady_clock::now();
+      auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time);
+
+      if (elapsed >= read_timeout_ms_) {
+        break;  // timeout reached → return what we have
+      }
+
+      timeout_ms = static_cast<int>((read_timeout_ms_ - elapsed).count());
+    }
+
+    struct pollfd pfd;
+    pfd.fd = fd_serial_port_;
+    pfd.events = POLLIN;
+
+    int pr = poll_(&pfd, 1, timeout_ms);
+
+    if (pr < 0) {
+      if (errno == EINTR) continue;
+      throw IOException("Error in poll(): " + std::string(strerror(errno)));
+    }
+
+    if (pr == 0) {
+      break;
+    }
+
+    ssize_t ret = read_(fd_serial_port_,
+                        buffer + total_read,
+                        size - total_read);
+
+    if (ret < 0) {
+      if (errno == EINTR) continue;
+
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        continue;
+      }
+      throw IOException("Error reading raw data: " + std::string(strerror(errno)));
+    }
+
+    if (ret == 0) {
+      break;
+    }
+
+    total_read += static_cast<size_t>(ret);
+  }
+
+  return static_cast<ssize_t>(total_read);
+}
+
 void Serial::flushInputBuffer() {
   if (ioctl_(fd_serial_port_, TCFLSH, TCIFLUSH) != 0) {
     throw SerialException("Error flushing input buffer: " + std::string(strerror(errno)));
