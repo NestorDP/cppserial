@@ -36,8 +36,13 @@ int main(int argc, char** argv) {
     try {
       libserial::Ports ports;
       uint16_t num = ports.scanPorts();
-      std::cout << "Found " << (num + 1) << " entries (index 0.." << num << ")\n";
-      for (uint16_t i = 0; i <= num; ++i) {
+      if (num == 0) {
+        std::cout << "Found 0 entries\n";
+        return 0;
+      }
+      std::cout << "Found " << num << " entries (index 0.." << (num - 1) << ")\n";
+
+      for (uint16_t i = 0; i < num; ++i) {
         auto name = ports.findName(i);
         auto port = ports.findPortPath(i);
         auto bus = ports.findBusPath(i);
