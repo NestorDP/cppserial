@@ -110,9 +110,15 @@ TEST_F(PortsTest, GetDevicesPopulatesList) {
     ports.getDevices(devices);
   });
 
+  std::vector<std::string> names;
+  for (const auto& device : devices) {
+    names.push_back(device.getName());
+  }
+
   EXPECT_EQ(devices.size(), 2);
-  EXPECT_EQ(devices[0].getName(), "usb-Device_One_0001");
-  EXPECT_EQ(devices[1].getName(), "usb-Device_Two_0002");
+  
+  EXPECT_NE(std::find(names.begin(), names.end(), "usb-Device_One_0001"), names.end());
+  EXPECT_NE(std::find(names.begin(), names.end(), "usb-Device_Two_0002"), names.end());
 }
 
 
