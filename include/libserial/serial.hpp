@@ -93,15 +93,12 @@ void close();
 /**
  * @brief Writes data to the serial port
  *
- * Sends the provided string data to the serial port. A carriage return
- * character ('\\r') is automatically appended to the data.
+ * Sends the provided string data to the serial port. The string is sent as-is without any
+ * additional formatting or terminators.
  *
  * @param data String view containing the data to write
- * @throws SerialException if write operation fails
- * @throws std::invalid_argument if data is empty
+ * @throws libserial::IOException if the write operation fails
  *
- * @note The original string is not modified; a copy is made with the
- *       terminator appended.
  */
 void write(std::string_view data);
 
@@ -110,11 +107,10 @@ void write(std::string_view data);
  *
  * Sends the provided byte data to the serial port without any modification.
  *
- * @param data Vector containing the byte data to write
- * @param size Number of bytes to write from the data vector
+ * @param data Pointer to the byte data to write
+ * @param size Number of bytes to write from the buffer pointed to by data
  * @return Number of bytes actually written
- * @throws SerialException if write operation fails
- * @throws std::invalid_argument if data vector is empty
+ * @throws libserial::IOException if the write operation fails
  */
 ssize_t writeRaw(const uint8_t* data, size_t size);
 
@@ -127,8 +123,7 @@ ssize_t writeRaw(const uint8_t* data, size_t size);
  *
  * @param data Vector containing the byte data to write
  * @return Number of bytes actually written
- * @throws SerialException if write operation fails
- * @throws std::invalid_argument if data vector is empty
+ * @throws libserial::IOException if the write operation fails
  */
 ssize_t writeRaw(const std::vector<uint8_t>& data);
 
@@ -142,8 +137,7 @@ ssize_t writeRaw(const std::vector<uint8_t>& data);
  *
  * @param buffer Shared pointer to string where data will be stored
  * @return Number of bytes actually read
- * @throws SerialException if read operation fails
- * @throws SerialException if buffer is null
+ * @throws libserial::IOException if the read operation fails
  *
  * @note The buffer will be resized to contain exactly the read data
  */
