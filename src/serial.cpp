@@ -3,9 +3,10 @@
 #include "libserial/serial.hpp"
 
 #include <iostream>
-#include <string>
 #include <memory>
 #include <poll.h>
+#include <string>
+#include <vector>
 
 namespace libserial {
 
