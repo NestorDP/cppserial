@@ -23,10 +23,28 @@ Serial::~Serial() {
 }
 
 void Serial::open(const std::string& port) {
-  fd_serial_port_ = ::open(port.c_str(), O_RDWR | O_NOCTTY);
+  // Open the serial port with read/write access, no controlling terminal, and non-blocking mode.
+  // On many serial devices, opening a port without O_NONBLOCK can block waiting for modem
+  // control lines/carrier detect, which is a behavior change that can hang callers. By opening
+  // in non-blocking mode and then immediately clearing that flag, we can avoid this issue while
+  // still allowing blocking reads/writes as expected.
+  fd_serial_port_ = ::open(port.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
 
   if (fd_serial_port_ == -1) {
     throw SerialException("Error opening port " + port + ": " + strerror(errno));
+  }
+
+  int flags = ::fcntl(fd_serial_port_, F_GETFL);
+
+  if (flags == -1) {
+    int saved_errno = errno;
+    this->close();
+    throw SerialException("Error configuring port " + port + ": " + strerror(saved_errno));
+  }
+  if (::fcntl(fd_serial_port_, F_SETFL, flags & ~O_NONBLOCK) == -1) {
+    int saved_errno = errno;
+    this->close();
+    throw SerialException("Error configuring port " + port + ": " + strerror(saved_errno));
   }
 }
 
