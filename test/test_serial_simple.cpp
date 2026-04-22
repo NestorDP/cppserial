@@ -69,10 +69,9 @@ TEST_F(SerialTest, APIExists) {
                libserial::SerialException);
 
 
-  // Test new shared pointer read API
+  // Verify read APIs remain available and report unopened-port errors
   std::string buffer;
   EXPECT_THROW(serial.read(buffer), libserial::IOException);
-  // EXPECT_THROW(serial.readUntil(buffer, '\n'), libserial::IOException);
 }
 
 TEST_F(SerialTest, CloseWithInvalidFd) {

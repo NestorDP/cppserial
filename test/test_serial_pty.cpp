@@ -2,20 +2,21 @@
 
 #include <gtest/gtest.h>
 
-#include <vector>
-#include <iostream>
+#include <algorithm>
+#include <chrono>
 #include <cstdlib>
+#include <iostream>
 #include <memory>
 #include <string>
-#include <chrono>
 #include <thread>
+#include <vector>
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "libserial/serial.hpp"
 #include "libserial/serial_exception.hpp"
@@ -262,7 +263,7 @@ TEST_F(PseudoTerminalTest, WriteRawPartialWrites) {
   libserial::Serial serial_port;
   serial_port.open(slave_port_);
 
-  std::vector<uint8_t> data = {1,2,3,4,5,6};
+  std::vector<uint8_t> data = {1, 2, 3, 4, 5, 6};
 
   size_t call_count = 0;
 
@@ -285,7 +286,7 @@ TEST_F(PseudoTerminalTest, WriteRawWithEINTR) {
   libserial::Serial serial_port;
   serial_port.open(slave_port_);
 
-  std::vector<uint8_t> data = {1,2,3};
+  std::vector<uint8_t> data = {1, 2, 3};
 
   int call_count = 0;
 
@@ -308,7 +309,7 @@ TEST_F(PseudoTerminalTest, WriteRawWithError) {
   libserial::Serial serial_port;
   serial_port.open(slave_port_);
 
-  std::vector<uint8_t> data = {1,2,3};
+  std::vector<uint8_t> data = {1, 2, 3};
 
   serial_port.setWriteSystemFunction(
     [](int, const void*, size_t) -> ssize_t {
