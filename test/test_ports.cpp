@@ -116,7 +116,7 @@ TEST_F(PortsTest, GetDevicesPopulatesList) {
   }
 
   EXPECT_EQ(devices.size(), 2);
-  
+
   EXPECT_NE(std::find(names.begin(), names.end(), "usb-Device_One_0001"), names.end());
   EXPECT_NE(std::find(names.begin(), names.end(), "usb-Device_Two_0002"), names.end());
 }
