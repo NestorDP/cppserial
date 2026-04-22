@@ -32,18 +32,6 @@ TEST_F(SerialTest, ConstructorWithInvalidPort) {
   }, libserial::SerialException);
 }
 
-// TEST_F(SerialTest, WriteWithSharedPtr) {
-//   libserial::Serial serial;
-
-//   // Test that write function accepts shared_ptr
-//   auto message = std::make_shared<std::string>("Test message");
-
-//   // This will throw since no port is opened, but tests the API
-//   EXPECT_THROW({
-//     serial.write(message);
-//   }, libserial::SerialException);
-// }
-
 TEST_F(SerialTest, WriteWithNullPtr) {
   libserial::Serial serial;
 
