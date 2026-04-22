@@ -135,7 +135,7 @@ ssize_t writeRaw(const std::vector<uint8_t>& data);
  * memory management and avoids unnecessary string copies. Just works
  * in canonical mode.
  *
- * @param buffer Shared pointer to string where data will be stored
+ * @param buffer Pointer to string where data will be stored
  * @return Number of bytes actually read
  * @throws libserial::IOException if the read operation fails
  *
@@ -149,12 +149,12 @@ size_t read(std::string & buffer);
  * Reads exactly num_bytes from the serial port and stores them
  * in the provided shared string buffer. Just works in non-canonical mode.
  *
- * @param buffer Shared pointer to string where data will be stored
+ * @param buffer Pointer to string where data will be stored
  * @param num_bytes Number of bytes to read
  * @return Number of bytes actually read
- * @throws SerialException if read operation fails
- * @throws SerialException if buffer is null
- * @throws SerialException if num_bytes is zero
+ * @throws libserial::IOException if the read operation fails
+ * @throws std::invalid_argument if buffer is null
+ * @throws std::invalid_argument if num_bytes is zero
  *
  * @note The buffer will be resized to contain exactly the read data
  */
@@ -167,9 +167,11 @@ size_t readBytes(std::string & buffer, size_t num_bytes);
  * character is encountered. The terminator is included in the result.
  * Works in both canonical and non-canonical modes.
  *
+ * @param buffer Pointer to string where data will be stored
  * @param terminator The character to stop reading at
  * @return String containing all read data including the terminator
- * @throws SerialException if read operation fails
+ * @throws libserial::IOException if the read operation fails
+ * @throws std::invalid_argument if buffer is null
  *
  * @warning This method reads one byte at a time and may be slower
  *          for large amounts of data
