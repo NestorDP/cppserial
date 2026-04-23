@@ -144,9 +144,9 @@ ssize_t writeRaw(const std::vector<uint8_t>& data);
 size_t read(std::string & buffer);
 
 /**
- * @brief Reads a specific number of bytes from the serial port
+ * @brief Reads a number of bytes from the serial port
  *
- * Reads exactly num_bytes from the serial port and stores them
+ * Reads up to num_bytes from the serial port and stores them
  * in the provided shared string buffer. Just works in non-canonical mode.
  *
  * @param buffer Pointer to string where data will be stored
