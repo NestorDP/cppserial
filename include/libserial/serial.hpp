@@ -128,14 +128,14 @@ ssize_t writeRaw(const uint8_t* data, size_t size);
 ssize_t writeRaw(const std::vector<uint8_t>& data);
 
 /**
- * @brief Reads data from serial port into a shared pointer buffer
+ * @brief Reads data from serial port into a pointer buffer
  *
  * Reads up to max_length bytes from the serial port and stores them
- * in the provided shared string buffer. This version provides better
+ * in the provided string buffer. This version provides better
  * memory management and avoids unnecessary string copies. Just works
  * in canonical mode.
  *
- * @param buffer Pointer to string where data will be stored
+ * @param buffer String where data will be stored
  * @return Number of bytes actually read
  * @throws libserial::IOException if the read operation fails
  *
@@ -147,9 +147,9 @@ size_t read(std::string & buffer);
  * @brief Reads a number of bytes from the serial port
  *
  * Reads up to num_bytes from the serial port and stores them
- * in the provided shared string buffer. Just works in non-canonical mode.
+ * in the provided string buffer. Just works in non-canonical mode.
  *
- * @param buffer Pointer to string where data will be stored
+ * @param buffer String where data will be stored
  * @param num_bytes Number of bytes to read
  * @return Number of bytes actually read
  * @throws libserial::IOException if the read operation fails
@@ -167,7 +167,7 @@ size_t readBytes(std::string & buffer, size_t num_bytes);
  * character is encountered. The terminator is included in the result.
  * Works in both canonical and non-canonical modes.
  *
- * @param buffer Pointer to string where data will be stored
+ * @param buffer String where data will be stored
  * @param terminator The character to stop reading at
  * @return String containing all read data including the terminator
  * @throws libserial::IOException if the read operation fails
@@ -184,7 +184,7 @@ size_t readUntil(std::string & buffer, char terminator);
  * Reads up to size bytes of raw data from the serial port into the
  * provided buffer. This method is intended for non-canonical mode.
  *
- * @param buffer Pointer to a byte array where data will be stored
+ * @param buffer Byte array where data will be stored
  * @param size Maximum number of bytes to read
  * @return Number of bytes actually read
  * @throws SerialException if read operation fails
