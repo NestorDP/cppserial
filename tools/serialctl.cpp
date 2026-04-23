@@ -1,6 +1,7 @@
 // Copyright 2025 Nestor Neto
 
 // Simple CLI for libserial: list serial ports
+#include <cstdint>
 #include <iostream>
 #include <string>
 
