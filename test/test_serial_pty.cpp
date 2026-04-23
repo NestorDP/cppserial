@@ -241,6 +241,7 @@ TEST_F(PseudoTerminalTest, WriteRawBasic) {
   libserial::Serial serial_port;
 
   serial_port.open(slave_port_);
+  serial_port.setCanonicalMode(libserial::CanonicalMode::DISABLE);
   serial_port.setBaudRate(115200);
 
   std::vector<uint8_t> data = {0x00, 0xFF, 0x10, 0x41, 0x00};
@@ -262,6 +263,7 @@ TEST_F(PseudoTerminalTest, WriteRawBasic) {
 TEST_F(PseudoTerminalTest, WriteRawPartialWrites) {
   libserial::Serial serial_port;
   serial_port.open(slave_port_);
+  serial_port.setCanonicalMode(libserial::CanonicalMode::DISABLE);
 
   std::vector<uint8_t> data = {1, 2, 3, 4, 5, 6};
 
@@ -285,6 +287,7 @@ TEST_F(PseudoTerminalTest, WriteRawPartialWrites) {
 TEST_F(PseudoTerminalTest, WriteRawWithEINTR) {
   libserial::Serial serial_port;
   serial_port.open(slave_port_);
+  serial_port.setCanonicalMode(libserial::CanonicalMode::DISABLE);
 
   std::vector<uint8_t> data = {1, 2, 3};
 
@@ -308,6 +311,7 @@ TEST_F(PseudoTerminalTest, WriteRawWithEINTR) {
 TEST_F(PseudoTerminalTest, WriteRawWithError) {
   libserial::Serial serial_port;
   serial_port.open(slave_port_);
+  serial_port.setCanonicalMode(libserial::CanonicalMode::DISABLE);
 
   std::vector<uint8_t> data = {1, 2, 3};
 
@@ -331,12 +335,64 @@ TEST_F(PseudoTerminalTest, WriteRawWithError) {
 TEST_F(PseudoTerminalTest, WriteRawLargeBuffer) {
   libserial::Serial serial_port;
   serial_port.open(slave_port_);
+  serial_port.setCanonicalMode(libserial::CanonicalMode::DISABLE);
 
   EXPECT_NO_THROW({
     std::vector<uint8_t> data(4096, 0xAA);
     ssize_t written = serial_port.writeRaw(data.data(), data.size());
     EXPECT_EQ(written, data.size());
   });
+}
+
+TEST_F(PseudoTerminalTest, WriteRawPollTimeout) {
+  libserial::Serial serial;
+
+  serial.setFdForTest(slave_fd_);
+  serial.setCanonicalMode(libserial::CanonicalMode::DISABLE);
+  serial.setWriteTimeout(std::chrono::milliseconds(100));
+
+  // poll always times out
+  serial.setPollSystemFunction(
+    [](struct pollfd*, nfds_t, int) {
+      return 0;
+    });
+
+  uint8_t data[10] = {0};
+
+  ssize_t written = serial.writeRaw(data, sizeof(data));
+
+  EXPECT_EQ(written, 0);
+}
+
+TEST_F(PseudoTerminalTest, WriteRawNullBuffer) {
+  libserial::Serial serial_port;
+  serial_port.open(slave_port_);  // Open a valid port to avoid fd errors
+  serial_port.setCanonicalMode(libserial::CanonicalMode::DISABLE);
+  EXPECT_THROW({
+    try {
+      serial_port.writeRaw(nullptr, 10);
+    }
+    catch (const libserial::IOException& e) {
+      EXPECT_STREQ("Invalid buffer passed to writeRaw", e.what());
+      throw;
+    }
+  }, libserial::IOException);
+}
+
+TEST_F(PseudoTerminalTest, WriteRawZeroSize) {
+  libserial::Serial serial_port;
+  serial_port.open(slave_port_);  // Open a valid port to avoid fd errors
+  serial_port.setCanonicalMode(libserial::CanonicalMode::DISABLE);
+  uint8_t dummy = 0;
+  EXPECT_THROW({
+    try {
+      serial_port.writeRaw(&dummy, 0);
+    }
+    catch (const libserial::IOException& e) {
+      EXPECT_STREQ("Invalid buffer passed to writeRaw", e.what());
+      throw;
+    }
+  }, libserial::IOException);
 }
 
 TEST_F(PseudoTerminalTest, ReadCanonicalMode) {
