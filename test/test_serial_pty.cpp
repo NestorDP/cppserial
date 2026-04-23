@@ -219,10 +219,8 @@ TEST_F(PseudoTerminalTest, WriteTest) {
   serial_port.open(slave_port_);
   serial_port.setBaudRate(115200);
 
-  // Create test data using smart pointer
   std::string_view test_data("Test Write Data");
 
-  // Write using our Serial class
   EXPECT_NO_THROW({ serial_port.write(test_data); });
 
   // Give time for data to propagate
