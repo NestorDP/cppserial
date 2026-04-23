@@ -71,25 +71,71 @@ void Serial::write(std::string_view data) {
 }
 
 ssize_t Serial::writeRaw(const uint8_t* data, size_t size) {
+  if (canonical_mode_ == CanonicalMode::ENABLE) {
+    throw IOException(
+            "writeRaw() is not supported in canonical mode; use write() instead");
+  }
+
   if (!data || size == 0) {
     throw IOException("Invalid buffer passed to writeRaw");
   }
 
   size_t total_written = 0;
+  auto start_time = std::chrono::steady_clock::now();
 
   while (total_written < size) {
+    int timeout_ms = -1;
+    if (write_timeout_ms_.count() > 0) {
+      auto now = std::chrono::steady_clock::now();
+      auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time);
+
+      if (elapsed >= write_timeout_ms_) {
+        break;
+      }
+
+      timeout_ms = static_cast<int>((write_timeout_ms_ - elapsed).count());
+    }
+
+    struct pollfd pfd;
+    pfd.fd = fd_serial_port_;
+    pfd.events = POLLOUT;
+
+    int pool_result = poll_(&pfd, 1, timeout_ms);
+
+    if (pool_result < 0) {
+      if (errno == EINTR) continue;
+      throw IOException("Error in poll(): " + std::string(strerror(errno)));
+    }
+
+    if (pool_result == 0) {
+      break;
+    }
+
+    // Check for error conditions signaled by poll
+    if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL)) {
+      throw IOException("Serial port not writable (poll error state)");
+    }
+
     ssize_t ret = write_(fd_serial_port_,
                          data + total_written,
                          size - total_written);
 
     if (ret < 0) {
       if (errno == EINTR) continue;
+      // Defensive: if fd was toggled non-blocking somewhere
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        continue;
+      }
       throw IOException("Error writing raw data: " + std::string(strerror(errno)));
     }
 
+    if (ret == 0) {
+      // No progress even though POLLOUT said writable.
+      // Avoid tight spin: re-poll (or optionally sleep a tiny bit).
+      continue;
+    }
     total_written += static_cast<size_t>(ret);
   }
-
   return static_cast<ssize_t>(total_written);
 }
 
