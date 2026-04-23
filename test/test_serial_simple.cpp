@@ -32,11 +32,11 @@ TEST_F(SerialTest, ConstructorWithInvalidPort) {
   }, libserial::SerialException);
 }
 
-TEST_F(SerialTest, WriteWithNullPtr) {
+TEST_F(SerialTest, WriteWithEmptyStringView) {
   libserial::Serial serial;
 
   EXPECT_THROW({
-    // Test that write function handles null pointer
+    // Test that write function handles a default-constructed empty string_view
     std::string_view null_message;
     serial.write(null_message);
   }, libserial::SerialException);
