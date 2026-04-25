@@ -38,12 +38,12 @@ void Serial::open(const std::string& port) {
 
   if (flags == -1) {
     int saved_errno = errno;
-    this->close();
+    ::close(fd_serial_port_);
     throw SerialException("Error configuring port " + port + ": " + strerror(saved_errno));
   }
   if (::fcntl(fd_serial_port_, F_SETFL, flags & ~O_NONBLOCK) == -1) {
     int saved_errno = errno;
-    this->close();
+    ::close(fd_serial_port_);
     throw SerialException("Error configuring port " + port + ": " + strerror(saved_errno));
   }
 }
