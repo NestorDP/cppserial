@@ -63,10 +63,20 @@ void Serial::write(std::string_view data) {
     throw IOException("Empty string passed to write function");
   }
 
-  ssize_t bytes_written = write_(fd_serial_port_, data.data(), data.size());
-
-  if (bytes_written < 0) {
-    throw IOException("Error writing to serial port: " + std::string(strerror(errno)));
+  size_t total_written = 0;
+  while (total_written < data.size()) {
+    ssize_t ret = write_(fd_serial_port_,
+                         data.data() + total_written,
+                         data.size() - total_written);
+    if (ret < 0) {
+      if (errno == EINTR) continue;
+      throw IOException("Error writing to serial port: " + std::string(strerror(errno)));
+    }
+    
+    if (ret == 0) {
+      throw IOException("Error writing to serial port: write returned 0");
+    }
+    total_written += static_cast<size_t>(ret);
   }
 }
 
@@ -96,11 +106,11 @@ ssize_t Serial::writeRaw(const uint8_t* data, size_t size) {
       timeout_ms = static_cast<int>((write_timeout_ms_ - elapsed).count());
     }
 
-    struct pollfd pfd;
-    pfd.fd = fd_serial_port_;
-    pfd.events = POLLOUT;
+    struct pollfd fd_poll;
+    fd_poll.fd = fd_serial_port_;
+    fd_poll.events = POLLOUT;
 
-    int pool_result = poll_(&pfd, 1, timeout_ms);
+    int pool_result = poll_(&fd_poll, 1, timeout_ms);
 
     if (pool_result < 0) {
       if (errno == EINTR) continue;
@@ -112,7 +122,7 @@ ssize_t Serial::writeRaw(const uint8_t* data, size_t size) {
     }
 
     // Check for error conditions signaled by poll
-    if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL)) {
+    if (fd_poll.revents & (POLLERR | POLLHUP | POLLNVAL)) {
       throw IOException("Serial port not writable (poll error state)");
     }
 
@@ -222,14 +232,14 @@ size_t Serial::readUntil(std::string & buffer, char terminator) {
       }
 
       // Use poll() to check if data is available with remaining timeout.
-      struct pollfd pfd;
-      pfd.fd = fd_serial_port_;
-      pfd.events = POLLIN;
+      struct pollfd fd_poll;
+      fd_poll.fd = fd_serial_port_;
+      fd_poll.events = POLLIN;
 
       int64_t remaining_timeout = read_timeout_ms_.count() - elapsed;
       int timeout_ms = static_cast<int>(remaining_timeout);
 
-      int poll_result = poll_(&pfd, 1, timeout_ms);
+      int poll_result = poll_(&fd_poll, 1, timeout_ms);
       if (poll_result < 0) {
         throw IOException("Error in poll(): " + std::string(strerror(errno)));
       }
@@ -284,18 +294,18 @@ ssize_t Serial::readRaw(uint8_t* buffer, size_t size) {
       timeout_ms = static_cast<int>((read_timeout_ms_ - elapsed).count());
     }
 
-    struct pollfd pfd;
-    pfd.fd = fd_serial_port_;
-    pfd.events = POLLIN;
+    struct pollfd fd_poll;
+    fd_poll.fd = fd_serial_port_;
+    fd_poll.events = POLLIN;
 
-    int pr = poll_(&pfd, 1, timeout_ms);
+    int poll_result = poll_(&fd_poll, 1, timeout_ms);
 
-    if (pr < 0) {
+    if (poll_result < 0) {
       if (errno == EINTR) continue;
       throw IOException("Error in poll(): " + std::string(strerror(errno)));
     }
 
-    if (pr == 0) {
+    if (poll_result == 0) {
       break;
     }
 
