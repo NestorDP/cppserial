@@ -15,10 +15,12 @@
 #include <sys/types.h>
 
 #include <chrono>
+#include <cstdint>
 #include <iostream>
-#include <memory>
 #include <functional>
+#include <memory>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -93,51 +95,72 @@ void close();
 /**
  * @brief Writes data to the serial port
  *
- * Sends the provided string data to the serial port. A carriage return
- * character ('\\r') is automatically appended to the data.
+ * Sends the provided string data to the serial port. The string is sent as-is without any
+ * additional formatting or terminators.
  *
- * @param data Shared pointer to the string data to write
- * @throws SerialException if write operation fails
- * @throws std::invalid_argument if data pointer is null
+ * @param data String view containing the data to write
+ * @throws libserial::IOException if the write operation fails
  *
- * @note The original string is not modified; a copy is made with the
- *       terminator appended.
  */
-void write(std::shared_ptr<std::string> data);
+void write(std::string_view data);
 
 /**
- * @brief Reads data from serial port into a shared pointer buffer
+ * @brief Writes raw byte data to the serial port
+ *
+ * Sends the provided byte data to the serial port without any modification.
+ *
+ * @param data Pointer to the byte data to write
+ * @param size Number of bytes to write from the buffer pointed to by data
+ * @return Number of bytes actually written
+ * @throws libserial::IOException if the write operation fails
+ */
+ssize_t writeRaw(const uint8_t* data, size_t size);
+
+/**
+ * @brief Writes raw byte data to the serial port
+ *
+ * Overloaded version that accepts a vector of bytes. This is a convenience
+ * method that simply calls the pointer-based writeRaw after checking for
+ * an empty vector.
+ *
+ * @param data Vector containing the byte data to write
+ * @return Number of bytes actually written
+ * @throws libserial::IOException if the write operation fails
+ */
+ssize_t writeRaw(const std::vector<uint8_t>& data);
+
+/**
+ * @brief Reads data from serial port into a pointer buffer
  *
  * Reads up to max_length bytes from the serial port and stores them
- * in the provided shared string buffer. This version provides better
+ * in the provided string buffer. This version provides better
  * memory management and avoids unnecessary string copies. Just works
  * in canonical mode.
  *
- * @param buffer Shared pointer to string where data will be stored
+ * @param buffer String where data will be stored
  * @return Number of bytes actually read
- * @throws SerialException if read operation fails
- * @throws SerialException if buffer is null
+ * @throws libserial::IOException if the read operation fails
  *
  * @note The buffer will be resized to contain exactly the read data
  */
-size_t read(std::shared_ptr<std::string> buffer);
+size_t read(std::string & buffer);
 
 /**
- * @brief Reads a specific number of bytes from the serial port
+ * @brief Reads a number of bytes from the serial port
  *
- * Reads exactly num_bytes from the serial port and stores them
- * in the provided shared string buffer. Just works in non-canonical mode.
+ * Reads up to num_bytes from the serial port and stores them
+ * in the provided string buffer. Just works in non-canonical mode.
  *
- * @param buffer Shared pointer to string where data will be stored
+ * @param buffer String where data will be stored
  * @param num_bytes Number of bytes to read
  * @return Number of bytes actually read
- * @throws SerialException if read operation fails
- * @throws SerialException if buffer is null
- * @throws SerialException if num_bytes is zero
+ * @throws libserial::IOException if the read operation fails
+ * @throws std::invalid_argument if buffer is null
+ * @throws std::invalid_argument if num_bytes is zero
  *
  * @note The buffer will be resized to contain exactly the read data
  */
-size_t readBytes(std::shared_ptr<std::string> buffer, size_t num_bytes);
+size_t readBytes(std::string & buffer, size_t num_bytes);
 
 /**
  * @brief Reads data until a specific terminator character is found
@@ -146,14 +169,30 @@ size_t readBytes(std::shared_ptr<std::string> buffer, size_t num_bytes);
  * character is encountered. The terminator is included in the result.
  * Works in both canonical and non-canonical modes.
  *
+ * @param buffer String where data will be stored
  * @param terminator The character to stop reading at
  * @return String containing all read data including the terminator
- * @throws SerialException if read operation fails
+ * @throws libserial::IOException if the read operation fails
+ * @throws std::invalid_argument if buffer is null
  *
  * @warning This method reads one byte at a time and may be slower
  *          for large amounts of data
  */
-size_t readUntil(std::shared_ptr<std::string> buffer, char terminator);
+size_t readUntil(std::string & buffer, char terminator);
+
+/**
+ * @brief Reads raw byte data from the serial port
+ *
+ * Reads up to size bytes of raw data from the serial port into the
+ * provided buffer. This method is intended for non-canonical mode.
+ *
+ * @param buffer Byte array where data will be stored
+ * @param size Maximum number of bytes to read
+ * @return Number of bytes actually read
+ * @throws libserial::IOException if the buffer pointer is null, the size is invalid,
+ *         or the read operation fails
+ */
+ssize_t readRaw(uint8_t* buffer, size_t size);
 
 /**
  * @brief Flushes the input buffer
@@ -161,7 +200,7 @@ size_t readUntil(std::shared_ptr<std::string> buffer, char terminator);
  * Discards any data that has been received but not yet read.
  * Useful for clearing stale data before starting fresh communication.
  *
- * @throws SerialException if flush operation fails
+ * @throws libserial::IOException if flush operation fails
  */
 void flushInputBuffer();
 
@@ -172,7 +211,7 @@ void flushInputBuffer();
  * speeds are set to the same value.
  *
  * @param baud_rate The desired baud rate (e.g., 9600, 115200)
- * @throws SerialException if baud rate cannot be set
+ * @throws libserial::SerialException if baud rate cannot be set
  *
  * @note The port must be opened before calling this method
  */
@@ -193,7 +232,7 @@ int getAvailableData() const;
  * @brief Sets the read timeout in milliseconds
  *
  * Configures the maximum time to wait for read operations before
- * timing out. A value of 0 means no timeout (blocking).
+ * timing out. A value of 0 means no timeout and -1 means infinite timeout.
  *
  * @param timeout Timeout in milliseconds
  *
@@ -207,7 +246,7 @@ void setReadTimeout(std::chrono::milliseconds timeout);
  * @brief Sets the write timeout in milliseconds
  *
  * Configures the maximum time to wait for write operations before
- * timing out. A value of 0 means no timeout (blocking).
+ * timing out. A value of 0 means no timeout and -1 means infinite timeout.
  *
  * @param timeout Timeout in milliseconds
  * @throws SerialException if setting cannot be applied
@@ -369,24 +408,23 @@ void setFdForTest(int fd) {
 // used in production code.
 void setPollSystemFunction(
   std::function<int(struct pollfd*, nfds_t, int)> poll_func) {
-  poll_ = [poll_func](struct pollfd* f, nfds_t n, int t) {
-            return poll_func(f, n, t);
-          };
+  poll_ = poll_func;
 }
 
 void setReadSystemFunction(
   std::function<ssize_t(int, void*, size_t)> read_func) {
-  read_ = [read_func](int fd, void* buf, size_t sz) {
-            return read_func(fd, buf, sz);
-          };
+  read_ = read_func;
+}
+
+void setWriteSystemFunction(
+  std::function<ssize_t(int, const void*, size_t)> write_func) {
+  write_ = write_func;
 }
 
 /* *INDENT-OFF* */
 void setIoctlSystemFunction(
   std::function<int(int, unsigned long, void*)> ioctl_func) {  // NOLINT
-  ioctl_ = [ioctl_func](int fd, unsigned long request, void* arg) { // NOLINT
-             return ioctl_func(fd, request, arg);
-           };
+  ioctl_ = ioctl_func;
 }
 /* *INDENT-ON* */
 #endif
@@ -422,6 +460,16 @@ std::function<int(struct pollfd*, nfds_t, int)> poll_ =
 std::function<ssize_t(int, void*, size_t)> read_ =
   [](int fd, void* buf, size_t sz) {
     return ::read(fd, buf, sz);
+  };
+
+/**
+ * @brief Write system call function wrapper
+ *
+ * Allows injection of custom write function for testing.
+ */
+std::function<ssize_t(int, const void*, size_t)> write_ =
+  [](int fd, const void* buf, size_t sz) {
+    return ::write(fd, buf, sz);
   };
 
 /**

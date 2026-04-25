@@ -71,10 +71,8 @@ int main(int argc, const char* argv[]) {
 
       // Send test message
       std::string test_msg = "Speed test at " + std::to_string(static_cast<int>(speed));
-      auto message = std::make_shared<std::string>(test_msg);
-
       auto start = std::chrono::high_resolution_clock::now();
-      serial.write(message);
+      serial.write(test_msg);
       auto end = std::chrono::high_resolution_clock::now();
 
       auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);

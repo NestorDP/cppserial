@@ -36,8 +36,8 @@ int main(int argc, const char* argv[]) {
     std::cout << "Current baud rate: " << current_baud << std::endl;
 
     // Send a message
-    auto message = std::make_shared<std::string>("Hello from libserial!");
-    std::cout << "Sending message: '" << *message << "'" << std::endl;
+    std::string message = "Hello from libserial!";
+    std::cout << "Sending message: '" << message << "'" << std::endl;
     serial.write(message);
 
     // Wait a bit for potential response
@@ -49,9 +49,9 @@ int main(int argc, const char* argv[]) {
     std::cout << "Available data: " << available << " bytes" << std::endl;
 
     if (available > 0) {
-      auto buffer = std::make_shared<std::string>();
+      std::string buffer;
       size_t bytes_read = serial.read(buffer);
-      std::cout << "Received (" << bytes_read << " bytes): '" << *buffer << "'" << std::endl;
+      std::cout << "Received (" << bytes_read << " bytes): '" << buffer << "'" << std::endl;
     } else {
       std::cout << "No response received." << std::endl;
       std::cout << "You can send data to the other end of the virtual port." << std::endl;
@@ -69,7 +69,7 @@ int main(int argc, const char* argv[]) {
       if (input.empty()) continue;
 
       // Send user input
-      auto user_message = std::make_shared<std::string>(input);
+      std::string user_message = input;
       serial.write(user_message);
       std::cout << "Sent: '" << input << "'" << std::endl;
 
@@ -78,9 +78,9 @@ int main(int argc, const char* argv[]) {
       available = serial.getAvailableData();
 
       if (available > 0) {
-        auto buffer = std::make_shared<std::string>();
+        std::string buffer;
         size_t bytes_read = serial.read(buffer);
-        std::cout << "Received (" << bytes_read << " bytes): '" << *buffer << "'" << std::endl;
+        std::cout << "Received (" << bytes_read << " bytes): '" << buffer << "'" << std::endl;
       }
     }
   } catch (const libserial::SerialException& e) {

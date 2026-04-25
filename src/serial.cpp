@@ -3,9 +3,10 @@
 #include "libserial/serial.hpp"
 
 #include <iostream>
-#include <string>
 #include <memory>
 #include <poll.h>
+#include <string>
+#include <vector>
 
 namespace libserial {
 
@@ -22,13 +23,28 @@ Serial::~Serial() {
 }
 
 void Serial::open(const std::string& port) {
-  fd_serial_port_ = ::open(port.c_str(), O_RDWR | O_NOCTTY | O_NDELAY | O_NONBLOCK);
+  // Open the serial port with read/write access, no controlling terminal, and non-blocking mode.
+  // On many serial devices, opening a port without O_NONBLOCK can block waiting for modem
+  // control lines/carrier detect, which is a behavior change that can hang callers. By opening
+  // in non-blocking mode and then immediately clearing that flag, we can avoid this issue while
+  // still allowing blocking reads/writes as expected.
+  fd_serial_port_ = ::open(port.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
 
   if (fd_serial_port_ == -1) {
     throw SerialException("Error opening port " + port + ": " + strerror(errno));
   }
-  else {
-    fcntl(fd_serial_port_, F_SETFL, 0);
+
+  int flags = ::fcntl(fd_serial_port_, F_GETFL);
+
+  if (flags == -1) {
+    int saved_errno = errno;
+    ::close(fd_serial_port_);
+    throw SerialException("Error configuring port " + port + ": " + strerror(saved_errno));
+  }
+  if (::fcntl(fd_serial_port_, F_SETFL, flags & ~O_NONBLOCK) == -1) {
+    int saved_errno = errno;
+    ::close(fd_serial_port_);
+    throw SerialException("Error configuring port " + port + ": " + strerror(saved_errno));
   }
 }
 
@@ -42,96 +58,163 @@ void Serial::close() {
   }
 }
 
-void Serial::write(std::shared_ptr<std::string> data) {
-  if (!data) {
-    throw IOException("Null pointer passed to write function");
+void Serial::write(std::string_view data) {
+  if (data.empty()) {
+    throw IOException("Empty string passed to write function");
   }
 
-  ssize_t bytes_written = ::write(fd_serial_port_, data->c_str(), data->size());
+  size_t total_written = 0;
+  while (total_written < data.size()) {
+    ssize_t ret = write_(fd_serial_port_,
+                         data.data() + total_written,
+                         data.size() - total_written);
+    if (ret < 0) {
+      if (errno == EINTR) continue;
+      throw IOException("Error writing to serial port: " + std::string(strerror(errno)));
+    }
 
-  if (bytes_written < 0) {
-    throw IOException("Error writing to serial port: " + std::string(strerror(errno)));
+    if (ret == 0) {
+      throw IOException("Error writing to serial port: write returned 0");
+    }
+    total_written += static_cast<size_t>(ret);
   }
 }
 
-size_t Serial::read(std::shared_ptr<std::string> buffer) {
+ssize_t Serial::writeRaw(const uint8_t* data, size_t size) {
+  if (canonical_mode_ == CanonicalMode::ENABLE) {
+    throw IOException(
+            "writeRaw() is not supported in canonical mode; use write() instead");
+  }
+
+  if (!data || size == 0) {
+    throw IOException("Invalid buffer passed to writeRaw");
+  }
+
+  size_t total_written = 0;
+  auto start_time = std::chrono::steady_clock::now();
+
+  while (total_written < size) {
+    int timeout_ms = -1;
+    if (write_timeout_ms_.count() > 0) {
+      auto now = std::chrono::steady_clock::now();
+      auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time);
+
+      if (elapsed >= write_timeout_ms_) {
+        break;
+      }
+
+      timeout_ms = static_cast<int>((write_timeout_ms_ - elapsed).count());
+    }
+
+    struct pollfd fd_poll;
+    fd_poll.fd = fd_serial_port_;
+    fd_poll.events = POLLOUT;
+
+    int pool_result = poll_(&fd_poll, 1, timeout_ms);
+
+    if (pool_result < 0) {
+      if (errno == EINTR) continue;
+      throw IOException("Error in poll(): " + std::string(strerror(errno)));
+    }
+
+    if (pool_result == 0) {
+      break;
+    }
+
+    // Check for error conditions signaled by poll
+    if (fd_poll.revents & (POLLERR | POLLHUP | POLLNVAL)) {
+      throw IOException("Serial port not writable (poll error state)");
+    }
+
+    ssize_t ret = write_(fd_serial_port_,
+                         data + total_written,
+                         size - total_written);
+
+    if (ret < 0) {
+      if (errno == EINTR) continue;
+      // Defensive: if fd was toggled non-blocking somewhere
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        continue;
+      }
+      throw IOException("Error writing raw data: " + std::string(strerror(errno)));
+    }
+
+    if (ret == 0) {
+      throw IOException("Error writing to serial port: write returned 0");
+    }
+    total_written += static_cast<size_t>(ret);
+  }
+  return static_cast<ssize_t>(total_written);
+}
+
+ssize_t Serial::writeRaw(const std::vector<uint8_t>& data) {
+  if (data.empty()) {
+    throw IOException("Data vector is empty");
+  }
+  return writeRaw(data.data(), data.size());
+}
+
+size_t Serial::read(std::string & buffer) {
   if (canonical_mode_ == CanonicalMode::DISABLE) {
     throw IOException(
-            "read() is not supported in non-canonical mode; use readBytes() or readUntil() instead");
+            "read() is not supported in non-canonical mode; use readBytes(), readUntil() or readRaw() instead");
   }
-
-  if (!buffer) {
-    throw IOException("Null pointer passed to read function");
-  }
-
-  buffer->clear();
-  buffer->resize(max_safe_read_size_);
 
   struct pollfd fd_poll;
   fd_poll.fd = fd_serial_port_;
   fd_poll.events = POLLIN;
 
-  // 0 => no wait (immediate return), -1 => block forever, positive => wait specified milliseconds
   int timeout_ms = static_cast<int>(read_timeout_ms_.count());
-  int pr = poll_(&fd_poll, 1, timeout_ms);
-  if (pr < 0) {
+  int poll_result = poll_(&fd_poll, 1, timeout_ms);
+  if (poll_result < 0) {
     throw IOException(std::string("Error in poll(): ") + strerror(errno));
   }
-  if (pr == 0) {
+  if (poll_result == 0) {
     throw IOException("Read operation timed out after " + std::to_string(timeout_ms) +
                       " milliseconds");
   }
 
-  // Data available: do the read
-  ssize_t bytes_read = read_(fd_serial_port_, const_cast<char*>(buffer->data()),
-                             max_safe_read_size_);
+  buffer.resize(max_safe_read_size_);
+
+  ssize_t bytes_read = read_(fd_serial_port_, buffer.data(), max_safe_read_size_);
   if (bytes_read < 0) {
     throw IOException(std::string("Error reading from serial port: ") + strerror(errno));
   }
-  buffer->resize(static_cast<size_t>(bytes_read));
+  buffer.resize(static_cast<size_t>(bytes_read));
   return static_cast<size_t>(bytes_read);
 }
 
-size_t Serial::readBytes(std::shared_ptr<std::string> buffer, size_t num_bytes) {
+size_t Serial::readBytes(std::string & buffer, size_t num_bytes) {
   if (canonical_mode_ == CanonicalMode::ENABLE) {
     throw IOException(
             "readBytes() is not supported in canonical mode; use read() or readUntil() instead");
-  }
-
-  if (!buffer) {
-    throw IOException("Null pointer passed to readBytes function");
   }
 
   if (num_bytes == 0) {
     throw IOException("Number of bytes requested must be greater than zero");
   }
 
-  buffer->clear();
-  buffer->resize(num_bytes);
+  buffer.clear();
+  buffer.resize(num_bytes);
 
-  ssize_t bytes_read = read_(fd_serial_port_, buffer->data(), num_bytes);  // codacy-ignore[buffer-boundary]
+  ssize_t bytes_read = read_(fd_serial_port_, buffer.data(), num_bytes);  // codacy-ignore[buffer-boundary]
 
   if (bytes_read < 0) {
     throw IOException("Error reading from serial port: " + std::string(strerror(errno)));
   }
 
-  buffer->resize(static_cast<size_t>(bytes_read));
+  buffer.resize(static_cast<size_t>(bytes_read));
   return static_cast<size_t>(bytes_read);
 }
 
-size_t Serial::readUntil(std::shared_ptr<std::string> buffer, char terminator) {
-  if (!buffer) {
-    throw IOException("Null pointer passed to readUntil function");
-  }
-
-  buffer->clear();
+size_t Serial::readUntil(std::string & buffer, char terminator) {
+  buffer.clear();
   char temp_char = '\0';
 
   auto start_time = std::chrono::steady_clock::now();
 
   while (temp_char != terminator) {
-    // Check buffer size limit to prevent excessive memory usage
-    if (buffer->size() >= max_safe_read_size_) {
+    if (buffer.size() >= max_safe_read_size_) {
       throw IOException("Read buffer exceeded maximum size limit of " +
                         std::to_string(max_safe_read_size_) +
                         " bytes without finding terminator");
@@ -147,16 +230,14 @@ size_t Serial::readUntil(std::shared_ptr<std::string> buffer, char terminator) {
       }
 
       // Use poll() to check if data is available with remaining timeout.
-      // poll() does not have the FD_SETSIZE limitation that select() has
-      // and is more robust for larger file descriptor values.
-      struct pollfd pfd;
-      pfd.fd = fd_serial_port_;
-      pfd.events = POLLIN;
+      struct pollfd fd_poll;
+      fd_poll.fd = fd_serial_port_;
+      fd_poll.events = POLLIN;
 
       int64_t remaining_timeout = read_timeout_ms_.count() - elapsed;
       int timeout_ms = static_cast<int>(remaining_timeout);
 
-      int poll_result = poll_(&pfd, 1, timeout_ms);
+      int poll_result = poll_(&fd_poll, 1, timeout_ms);
       if (poll_result < 0) {
         throw IOException("Error in poll(): " + std::string(strerror(errno)));
       }
@@ -165,27 +246,88 @@ size_t Serial::readUntil(std::shared_ptr<std::string> buffer, char terminator) {
       }
     }
 
-    // Data is available, perform the read
     ssize_t bytes_read = read_(fd_serial_port_, &temp_char, 1);
 
     if (bytes_read < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        // Non-blocking read, no data available right now
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         continue;
       }
       throw IOException("Error reading from serial port: " + std::string(strerror(errno)));
     }
     else if (bytes_read == 0) {
-      // End of file or connection closed
       throw IOException("Connection closed while reading: no terminator found");
     }
 
-    // Add the character to buffer (including terminator)
-    buffer->push_back(temp_char);
+    buffer.push_back(temp_char);
   }
 
-  return buffer->size();
+  return buffer.size();
+}
+
+ssize_t Serial::readRaw(uint8_t* buffer, size_t size) {
+  if (canonical_mode_ == CanonicalMode::ENABLE) {
+    throw IOException(
+            "readRaw() is not supported in canonical mode; use read() or readUntil() instead");
+  }
+
+  if (!buffer || size == 0) {
+    throw IOException("Invalid buffer passed to readRaw");
+  }
+
+  size_t total_read = 0;
+
+  auto start_time = std::chrono::steady_clock::now();
+
+  while (total_read < size) {
+    int timeout_ms = -1;
+    if (read_timeout_ms_.count() > 0) {
+      auto now = std::chrono::steady_clock::now();
+      auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time);
+
+      if (elapsed >= read_timeout_ms_) {
+        break;  // timeout reached → return what we have
+      }
+
+      timeout_ms = static_cast<int>((read_timeout_ms_ - elapsed).count());
+    }
+
+    struct pollfd fd_poll;
+    fd_poll.fd = fd_serial_port_;
+    fd_poll.events = POLLIN;
+
+    int poll_result = poll_(&fd_poll, 1, timeout_ms);
+
+    if (poll_result < 0) {
+      if (errno == EINTR) continue;
+      throw IOException("Error in poll(): " + std::string(strerror(errno)));
+    }
+
+    if (poll_result == 0) {
+      break;
+    }
+
+    ssize_t ret = read_(fd_serial_port_,
+                        buffer + total_read,
+                        size - total_read);
+
+    if (ret < 0) {
+      if (errno == EINTR) continue;
+
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        continue;
+      }
+      throw IOException("Error reading raw data: " + std::string(strerror(errno)));
+    }
+
+    if (ret == 0) {
+      break;
+    }
+
+    total_read += static_cast<size_t>(ret);
+  }
+
+  return static_cast<ssize_t>(total_read);
 }
 
 void Serial::flushInputBuffer() {

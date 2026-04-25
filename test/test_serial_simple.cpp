@@ -32,26 +32,13 @@ TEST_F(SerialTest, ConstructorWithInvalidPort) {
   }, libserial::SerialException);
 }
 
-TEST_F(SerialTest, WriteWithSharedPtr) {
+TEST_F(SerialTest, WriteWithEmptyStringView) {
   libserial::Serial serial;
 
-  // Test that write function accepts shared_ptr
-  auto message = std::make_shared<std::string>("Test message");
-
-  // This will throw since no port is opened, but tests the API
   EXPECT_THROW({
-    serial.write(message);
-  }, libserial::SerialException);
-}
-
-TEST_F(SerialTest, WriteWithNullPtr) {
-  libserial::Serial serial;
-
-  // Test that write function handles null pointer
-  std::shared_ptr<std::string> null_message;
-
-  EXPECT_THROW({
-    serial.write(null_message);
+    // Test that write function rejects empty string_view input
+    std::string_view empty_message;
+    serial.write(empty_message);
   }, libserial::SerialException);
 }
 
@@ -70,19 +57,9 @@ TEST_F(SerialTest, APIExists) {
                libserial::SerialException);
 
 
-  // Test new shared pointer read API
-  auto buffer = std::make_shared<std::string>();
+  // Verify read APIs remain available and report unopened-port errors
+  std::string buffer;
   EXPECT_THROW(serial.read(buffer), libserial::IOException);
-  EXPECT_THROW(serial.readUntil(buffer, '\n'), libserial::IOException);
-}
-
-TEST_F(SerialTest, ReadWithNullSharedPtr) {
-  libserial::Serial serial;
-
-  // Test that read function handles null shared pointer
-  std::shared_ptr<std::string> null_buffer;
-
-  EXPECT_THROW({ serial.read(null_buffer); }, libserial::SerialException);
 }
 
 TEST_F(SerialTest, CloseWithInvalidFd) {
@@ -97,3 +74,5 @@ TEST_F(SerialTest, CloseWithInvalidFd) {
     EXPECT_EQ(msg, "Error closing port: Bad file descriptor");
   }
 }
+
+

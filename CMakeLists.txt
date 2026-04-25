@@ -125,6 +125,7 @@ endif()
 option(BUILD_TESTING "Build tests" OFF)
 option(BUILD_COVERAGE "Build with code coverage support" OFF)
 option(BUILD_EXAMPLES "Build examples" OFF)
+option(BUILD_APP "Build CLI application installed with the library" OFF)
 
 # Coverage configuration
 if(BUILD_COVERAGE)
@@ -253,6 +254,18 @@ if(BUILD_EXAMPLES)
     add_custom_target(examples DEPENDS basic_communication baud_rate_testing list_ports)
     
     message(STATUS "Examples will be built - use 'make examples' to build them")
+endif()
+
+if(BUILD_APP)
+    # Create a small CLI that ships with the library
+    add_executable(serialctl tools/serialctl.cpp)
+    target_link_libraries(serialctl PRIVATE ${PROJECT_NAME})
+    target_include_directories(serialctl PRIVATE include)
+
+    install(TARGETS serialctl
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+    message(STATUS "Building and installing CLI 'serialctl'")
 endif()
 
 
