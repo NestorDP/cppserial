@@ -15,10 +15,12 @@
 #include <sys/types.h>
 
 #include <chrono>
+#include <cstdint>
 #include <iostream>
-#include <memory>
 #include <functional>
+#include <memory>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
