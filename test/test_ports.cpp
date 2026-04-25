@@ -1,6 +1,8 @@
 // Copyright 2020-2025 Nestor Neto
 
 #include <gtest/gtest.h>
+
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <dirent.h>
