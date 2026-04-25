@@ -232,7 +232,7 @@ int getAvailableData() const;
  * @brief Sets the read timeout in milliseconds
  *
  * Configures the maximum time to wait for read operations before
- * timing out. A value of 0 means no timeout (blocking).
+ * timing out. A value of 0 means no timeout and -1 means infinite timeout.
  *
  * @param timeout Timeout in milliseconds
  *
@@ -246,7 +246,7 @@ void setReadTimeout(std::chrono::milliseconds timeout);
  * @brief Sets the write timeout in milliseconds
  *
  * Configures the maximum time to wait for write operations before
- * timing out. A value of 0 means no timeout (blocking).
+ * timing out. A value of 0 means no timeout and -1 means infinite timeout.
  *
  * @param timeout Timeout in milliseconds
  * @throws SerialException if setting cannot be applied
