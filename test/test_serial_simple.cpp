@@ -36,9 +36,9 @@ TEST_F(SerialTest, WriteWithEmptyStringView) {
   libserial::Serial serial;
 
   EXPECT_THROW({
-    // Test that write function handles a default-constructed empty string_view
-    std::string_view null_message;
-    serial.write(null_message);
+    // Test that write function rejects empty string_view input
+    std::string_view empty_message;
+    serial.write(empty_message);
   }, libserial::SerialException);
 }
 
