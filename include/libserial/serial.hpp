@@ -189,8 +189,8 @@ size_t readUntil(std::string & buffer, char terminator);
  * @param buffer Byte array where data will be stored
  * @param size Maximum number of bytes to read
  * @return Number of bytes actually read
- * @throws SerialException if read operation fails
- * @throws std::invalid_argument if buffer pointer is null
+ * @throws libserial::IOException if the buffer pointer is null, the size is invalid,
+ *         or the read operation fails
  */
 ssize_t readRaw(uint8_t* buffer, size_t size);
 
@@ -200,7 +200,7 @@ ssize_t readRaw(uint8_t* buffer, size_t size);
  * Discards any data that has been received but not yet read.
  * Useful for clearing stale data before starting fresh communication.
  *
- * @throws SerialException if flush operation fails
+ * @throws libserial::IOException if flush operation fails
  */
 void flushInputBuffer();
 
@@ -211,7 +211,7 @@ void flushInputBuffer();
  * speeds are set to the same value.
  *
  * @param baud_rate The desired baud rate (e.g., 9600, 115200)
- * @throws SerialException if baud rate cannot be set
+ * @throws libserial::SerialException if baud rate cannot be set
  *
  * @note The port must be opened before calling this method
  */
