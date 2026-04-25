@@ -72,7 +72,7 @@ void Serial::write(std::string_view data) {
       if (errno == EINTR) continue;
       throw IOException("Error writing to serial port: " + std::string(strerror(errno)));
     }
-    
+
     if (ret == 0) {
       throw IOException("Error writing to serial port: write returned 0");
     }
