@@ -140,9 +140,7 @@ ssize_t Serial::writeRaw(const uint8_t* data, size_t size) {
     }
 
     if (ret == 0) {
-      // No progress even though POLLOUT said writable.
-      // Avoid tight spin: re-poll (or optionally sleep a tiny bit).
-      continue;
+      throw IOException("Error writing to serial port: write returned 0");
     }
     total_written += static_cast<size_t>(ret);
   }
