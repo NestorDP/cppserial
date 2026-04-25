@@ -352,8 +352,8 @@ TEST_F(PseudoTerminalTest, WriteRawPollTimeout) {
   // poll always times out
   serial.setPollSystemFunction(
     [](struct pollfd*, nfds_t, int) {
-      return 0;
-    });
+    return 0;
+  });
 
   uint8_t data[10] = {0};
 
